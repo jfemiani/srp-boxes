@@ -11,10 +11,13 @@ results go with which settings
 """
 
 from srp.units import FT, M
-
+import os
 
 EXPERIMENT_NAME = 'default'
 
+#: Project root
+ROOT = os.path.abspath(os.path.join(os.path.realpath(__file__), os.pardir, os.pardir))
+print ROOT
 # Early / Layer Fusion Settings {{{
 
 
@@ -37,7 +40,7 @@ LATE_FUSION_OPERATION = 'cat'
 
 # Data Preparation {{{
 
-#: The number of channels (slabs) of volumtric data.
+#: The number of channels (slabs) of volumetric data.
 VOLUME_SLABS = 5
 
 #: The minimum height above ground(Z)
@@ -48,6 +51,15 @@ VOLUME_MAX_Z = 4 * FT
 # }}}
 
 # Train / Val / Test split {{{
+
+#: The path to the volumetric 6 channel data
+VOLUMETRIC_PATH = os.path.join(ROOT, 'data/interim/srp', 'lidar_volume.vrt')
+
+#: The path to the rgb image
+COLOR_PATH = os.path.join(ROOT, 'data/srp/sec11-26949.tif')
+
+#: The path to annotated box coordinates
+ANNOTATION_PATH = os.path.join(ROOT, 'data/raw/srp/box-annotations.geojson')
 
 #: The number of folds (cross validation)
 FOLDS = 5

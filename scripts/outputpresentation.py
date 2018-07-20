@@ -1,4 +1,5 @@
 # given cx, cy, ux, uy, d, find 4 points
+import numpy as np
 from math import hypot
 
 
@@ -13,8 +14,8 @@ class OutputRepresentations:
     @staticmethod
     def from_rot_length_width(ctr, deg, length, width):
         cx, cy = ctr
-        uax = cos(radians(deg))
-        uay = sin(radians(deg))
+        uax = np.cos(np.radians(deg))
+        uay = np.sin(np.radians(deg))
         ux = uax * length / 2.
         uy = uay * length / 2.
         vd = width / 2.
@@ -62,10 +63,10 @@ class OutputRepresentations:
         ctr = points.mean(0)
         p = points - ctr
         u = ((p[0] + p[3]) - (p[1] + p[2])) / 2.
-        angle = arctan2(u[1], u[0])
-        angle = (angle + 2 * pi) % (pi / 2.)
-        uax = cos(angle)
-        uay = sin(angle)
+        angle = np.arctan2(u[1], u[0])
+        angle = (angle + 2 * np.pi) % (np.pi / 2.)
+        uax = np.cos(angle)
+        uay = np.sin(angle)
         assert uax >= 0 and uay >= 0
 
         ud = p.dot([uax, uay]).max()

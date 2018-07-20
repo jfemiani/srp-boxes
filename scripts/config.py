@@ -1,5 +1,6 @@
 import os
 
+
 class Config(object):
     def __init__(self):
         self.ROOT = os.path.abspath(os.path.join(os.path.realpath(__file__), os.pardir, os.pardir))
