@@ -17,7 +17,7 @@ from srp.units import FT, M
 
 # Paths {{{
 
-ROOT = os.path.dirname(srp.__file__)
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(srp.__file__)))
 INT_DATA = os.path.join(ROOT, 'data', 'interim')
 RAW_DATA = os.path.join(ROOT, 'data', 'raw')
 # }}}
