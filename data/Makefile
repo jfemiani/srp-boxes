@@ -5,7 +5,7 @@ VISION_FILE_SERVER = http://handouts1.csi.miamioh.edu:82/vision/
 RAW_DATA_FILES = data/raw/srp/box-annotations.geojson
 RAW_DATA_FILES += data/raw/srp/sec11-26949.tif
 
-INTERIM_DATA_FILES = data/interim/srp/lidar_volime.vrt
+INTERIM_DATA_FILES = data/interim/srp/lidar_volume.vrt
 
 
 data: $(RAW_DATA_FILE) $(INTERIM_DATA_FILES)

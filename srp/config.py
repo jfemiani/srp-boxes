@@ -42,6 +42,15 @@ VOLUME_Z_MAX = 4 * FT
 
 # Train / Val / Test split {{{
 
+#: The path to the volumetric 6 channel data
+VOLUMETRIC_PATH = os.path.join(ROOT, 'data/interim/srp', 'lidar_volume.vrt')
+
+#: The path to the rgb image
+COLOR_PATH = os.path.join(ROOT, 'data/srp/sec11-26949.tif')
+
+#: The path to annotated box coordinates
+ANNOTATION_PATH = os.path.join(ROOT, 'data/raw/srp/box-annotations.geojson')
+
 #: The number of folds (cross validation)
 TRAINING_NUM_FOLDS = 5
 
