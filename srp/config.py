@@ -10,7 +10,7 @@ Change this to match an experiment; this way you can keep track of which
 results go with which settings
 """
 
-from srp.units import FT
+from srp.units import FT, M
 
 
 EXPERIMENT_NAME = 'default'
@@ -64,15 +64,19 @@ FOLD_CHECKSUM = None
 
 # Class balancing & Sampling {{{
 
+#: The total number of samples.
+#: Every positive (object) sample will be used, the remaining samples will 
+#: be background samples
+NUM_SAMPLES = 2000
+
 #: Whether to draw samples so that each batch has a balanced number of labels.
-#:
 STRATIFY = False
 
-# The class weights for BALANCE_CLASSES
-#
-#  If a sample's true label is 'pos' and it is assigned 'neg', the loss
-#  associated with that error is BALANCE['pos']
-BALANCE = {'pos': 1, 'neg': 0.5}
+#: The class weights STRATIFY
+SRATIFY_BALANCE = 1, 1
+
+#: The minimum distance between a background and a foreground sample
+MIN_SEPARATION = 2*M
 
 #: Whether to use hard sampling.
 #:
