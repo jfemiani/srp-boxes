@@ -1,0 +1,23 @@
+FUSION:
+- early_fusion
+- late_fusion_add
+- late_fusion_cat
+OBB_PARAMETRIZATION:
+- vector_and_width
+- four_points
+- two_vectors
+SYNTHETIC:
+- no_pretrain
+- pretrain
+CHANNEL_DROPOUT:
+- cdrop
+- no_cdrop
+CLASS_LOSS:
+- hinge_loss
+- xent_loss
+REGRESSION_LOSS:
+- smooth_L1
+- L2
+AUG_JITTER:
+- no_jitter
+- jitter
