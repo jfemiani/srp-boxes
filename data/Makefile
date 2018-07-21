@@ -2,25 +2,29 @@
 
 VISION_FILE_SERVER = http://handouts1.csi.miamioh.edu:82/vision/
 
-RAW_DATA_FILES = data/raw/srp/box-annotations.geojson
-RAW_DATA_FILES += data/raw/srp/sec11-26949.tif
 
-INTERIM_DATA_FILES = data/interim/srp/lidar_volume.vrt
-
-
-data: $(RAW_DATA_FILE) $(INTERIM_DATA_FILES)
-
+data: $(RAW_DATA_FILE)  volume-data
 
 # Fetch the RAW data {{{
 
-data/interim/srp/lidar_volume.vrt:
-	wget -D data/interim/srp $(VISION_FILE_SERVER)srp/lidar_volume.zip
-	unzip -d data/interim/srp data/interim/srp/lidar_volume.zip
+annotations: raw/srp/box-annotations.geojson
 
-data/raw/srp/box-annotations.geojson:
+imagery: raw/srp/sec11-26949.tif
+
+volume-data: interim/srp/stack_a4b2/lidar_volume.vrt
+
+
+interim/srp/stack_a4b2/stack_a4b2.vrt.zip:
+	mkdir -p interim/srp
+	wget -D interim/srp $(VISION_FILE_SERVER)srp/stack_a4b2.vrt.zip
+
+interim/srp/stack_a4b2/lidar_volume.vrt: interim/srp/stack_a4b2.vrt.zip
+	unzip -n -d interim/srp interim/srp/stack_a4b2.vrt.zip
+
+raw/srp/box-annotations.geojson:
 	wget -O $@ $(VISION_FILE_SERVER)srp/box-annotations.geojson
 
-data/raw/srp/sec11-26949.tif:
+raw/srp/sec11-26949.tif:
 	wget -O $@ $(VISION_FILE_SERVER)srp/sec11-26949.tif
 
 # Targets that generate the VRT {{{

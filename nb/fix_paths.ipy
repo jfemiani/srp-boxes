@@ -1,0 +1,11 @@
+
+# Make a variable ROOT with the repo root.
+ROOT = !git rev-parse --show-toplevel
+ROOT = ROOT[0]
+
+%cd {ROOT}
+
+# Add the repo ROOT to the system path, in case we change directories later.
+import sys
+if not ROOT in sys.path:
+    sys.path.insert(0, ROOT)

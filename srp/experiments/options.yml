@@ -1,23 +1,50 @@
+### Options for a grid search over possible parametere.
+#
+# See 'make_experiments' for an example that uses the data.
+#
+# Each decision we wish to test is a top-level elements,
+# the different options for that decision are listed below
+# it a YAML list.
+#
+###
+
+# Whether to do early fusion or late fusion. Fusion can be done by either adding or concatenating the
+# channels. Adding the channels wont work for early fusion since the inputs have different numbers of
+# channels.
 FUSION:
 - early_fusion
 - late_fusion_add
 - late_fusion_cat
+
+# How we represent the Oriented Bounding Boxes (OBBs) when we compute the loss. Each representation has more
+# degrees of freedom.
 OBB_PARAMETRIZATION:
 - vector_and_width
-- four_points
 - two_vectors
+- four_points
+
+# Whether to include synthetic data in the first few epochs.
 SYNTHETIC:
 - no_pretrain
 - pretrain
+
+# Whether to use channel dropout -- I actually mean droping an input source.
+# The idea is to prevent it from becoming overly reliant on one source of data.
 CHANNEL_DROPOUT:
 - cdrop
 - no_cdrop
+
+# Which loss function to use when deciding if it is an object (box) or background.
 CLASS_LOSS:
 - hinge_loss
 - xent_loss
+
+# Which loss to use when predicting the parameters of the OBB
 REGRESSION_LOSS:
 - smooth_L1
 - L2
+
+  # Whether to apply jitter to the input sources to simulate registration issues
 AUG_JITTER:
 - no_jitter
 - jitter
