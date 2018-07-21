@@ -33,10 +33,11 @@ def make_dot(var):
     return dot
 
 
-inputs = torch.randn(1,3,224,224)
-resnet18 = models.resnet18()
-y = resnet18(Variable(inputs))
-print(y)
+if __name__ == '__main__':
+    inputs = torch.randn(1,3,224,224)
+    resnet18 = models.resnet18()
+    y = resnet18(Variable(inputs))
+    print(y)
 
-g = make_dot(y)
-g
+    g = make_dot(y)
+    g

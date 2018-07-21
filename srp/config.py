@@ -10,47 +10,43 @@ Change this to match an experiment; this way you can keep track of which
 results go with which settings
 """
 
-from srp.units import FT, M
 import os
 
-EXPERIMENT_NAME = 'default'
+import srp
+from srp.units import FT, M
 
-#: Project root
-ROOT = os.path.abspath(os.path.join(os.path.realpath(__file__), os.pardir, os.pardir))
-# print ROOT
-# Early / Layer Fusion Settings {{{
+# Paths {{{
 
-
-#: Whether use the data before feeding the network
-EARLY_FUSION = True
-
-#: Whether to concatenate the feature representations.
-#:
-#: One of:
-#:   :'cat': Concatenate the flattened output vectors of
-#:           the "bodies" of the net, then add a single
-#:           hidden layer that reduces the number of
-#:           outputs by 2.
-#:   :'add': Add the flattened output vectors element-wise.
-#:
-LATE_FUSION_OPERATION = 'cat'
-# LATE_FUSION_OPERATION='add'
-
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(srp.__file__)))
+INT_DATA = os.path.join(ROOT, 'data', 'interim')
+RAW_DATA = os.path.join(ROOT, 'data', 'raw')
 # }}}
 
-# Data Preparation {{{
+# Volume File Settings {{{
+
+#: The raster source for volume data
+VOLUME_FILE = '{INT_DATA}/volume.tif'
+
+#: The CRS to use if the data is missing in the file
+VOLUME_DEFAULT_CRS = 'epsg:26949'  # AZ
 
 #: The number of channels (slabs) of volumetric data.
-VOLUME_SLABS = 5
+VOLUME_STEPS = 5
 
 #: The minimum height above ground(Z)
-VOLUME_MIN_Z = -1 * FT
+VOLUME_Z_MIN = -1 * FT
 #: The maximum height above ground(Z)
-VOLUME_MAX_Z = 4 * FT
+VOLUME_Z_MAX = 4 * FT
 
 # }}}
 
 # Train / Val / Test split {{{
+
+#: The path to the volumetric 6 channel data
+VOLUMETRIC_PATH = os.path.join(ROOT, 'data/interim/srp', 'lidar_volume.vrt')
+
+#: The path to the rgb image
+COLOR_PATH = os.path.join(ROOT, 'data/srp/sec11-26949.tif')
 
 #: The path to the volumetric 6 channel data
 VOLUMETRIC_PATH = os.path.join(ROOT, 'data/interim/srp/stack_a4b2/lidar_volume.vrt')
@@ -67,22 +63,25 @@ SAMPLE_PATH = os.path.join(ROOT, 'data/interim/srp/sample_locations_epsg26949.np
 #: The path to which the script outputs .csv file
 CSV_DIR = os.path.join(ROOT, 'srp/data')
 #: The number of folds (cross validation)
-FOLDS = 5
+# Volume File Settings {{{
+
+#: The raster source for volume data
+VOLUME_FILE = '{INT_DATA}/volume.tif'
+
+#: The CRS to use if the data is missing in the file
+VOLUME_DEFAULT_CRS = 'epsg:26949'  # AZ
 #: Which fold is current.
-FOLD = 1
+TRAINING_CURRENT_FOLD = 1
+VOLUME_STEPS = 5
 #: The RNG for folds (for repeatability)
 FOLD_RANDOM_SEED = 127
-#: A checksum on the actual sampling used in the folds
-#: Should be set when folds are made; to ensure no contamination of folds.
-FOLD_CHECKSUM = None
 
 # }}}
-
 
 # Class balancing & Sampling {{{
 
 #: The total number of samples.
-#: Every positive (object) sample will be used, the remaining samples will 
+#: Every positive (object) sample will be used, the remaining samples will
 #: be background samples
 NUM_SAMPLES = 2000
 
@@ -92,8 +91,7 @@ STRATIFY = False
 #: The class weights STRATIFY
 SRATIFY_BALANCE = 1, 1
 
-#: The minimum distance between a background and a foreground sample
-MIN_SEPARATION = 2*M
+MIN_SEPARATTION = 2 * M
 
 #: Whether to use hard sampling.
 #:

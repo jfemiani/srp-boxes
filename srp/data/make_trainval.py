@@ -25,7 +25,8 @@ def make_trainval(rgb_image_path=C.COLOR_PATH,
                   min_separation=None,
                   C=srp.config
                   ):
-    """
+    
+    nodctest = """
 
     No 'train' rectangle may overlap a 'val' rectangle. 
 

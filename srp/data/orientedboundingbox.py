@@ -1,9 +1,10 @@
 # given cx, cy, ux, uy, d, find 4 points
 import numpy as np
 from math import hypot
+import shapely
+import matplotlib as plt
 
-
-class OutputRepresentations:
+class OrientedBoundingBox:
     def __init__(self, cx=0, cy=0, ux=0, uy=0, vd=0):
         self.cx = cx
         self.cy = cy
@@ -20,7 +21,7 @@ class OutputRepresentations:
         uy = uay * length / 2.
         vd = width / 2.
 
-        return OutputRepresentations(cx, cy, ux, uy, vd)
+        return OrientedBoundingBox(cx, cy, ux, uy, vd)
     
     @staticmethod
     def get_rot_length_width_from_points(points):
@@ -28,7 +29,7 @@ class OutputRepresentations:
         return cx, cy, deg, length(2*ud), width(2*vd)
         """
         
-        oo = OutputRepresentations.from_points(points)
+        oo = OrientedBoundingBox.from_points(points)
         angle =  np.degrees(np.arctan2(oo.uy, oo.ux))
         return np.array([oo.cx, oo.cy, angle, 2*oo.ud, 2*oo.vd])
     
@@ -83,4 +84,14 @@ class OutputRepresentations:
         vd = p.dot([-uay, uax]).max()
         ux, uy = ud * np.array([uax, uay])
 
-        return OutputRepresentations(ctr[0], ctr[1], ux, uy, vd)
+        return OrientedBoundingBox(ctr[0], ctr[1], ux, uy, vd)
+    
+    def shape(self):
+        return shapely.geometry.Polygon(self.points())
+    
+    def plot(self, ax):
+        if ax is None:
+            ax = plt.gca()
+            
+        ax.add_patch(plt.Polygon(self.points(), alpha=0.5, fill=False,  color='r'))
+        
