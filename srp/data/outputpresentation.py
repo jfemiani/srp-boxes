@@ -21,7 +21,17 @@ class OutputRepresentations:
         vd = width / 2.
 
         return OutputRepresentations(cx, cy, ux, uy, vd)
-
+    
+    @staticmethod
+    def get_rot_length_width_from_points(points):
+        """
+        return cx, cy, deg, length(2*ud), width(2*vd)
+        """
+        
+        oo = OutputRepresentations.from_points(points)
+        angle =  np.degrees(np.arctan2(oo.uy, oo.ux))
+        return np.array([oo.cx, oo.cy, angle, 2*oo.ud, 2*oo.vd])
+    
     @property
     def ud(self):
         return hypot(self.ux, self.uy)

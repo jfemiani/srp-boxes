@@ -3,13 +3,22 @@
 Locations of data are specified in config.py
 """
 
-import srp.config 
+import srp.config as C
 import rtree
+
+
+class TrainValMaker(object):
+    def __init__(self,
+                 rgb_image_path=C.COLOR_PATH,
+                 volume_raster_path = C.VOLUMETRIC_PATH,
+                 annotations_path = C.
+                 ):
+
 
 
 # Note -- I may make a class out of this. Logic will remain the same 
 # and I will merge any changes you make in
-def make_trainval(rgb_image_path=None, 
+def make_trainval(rgb_image_path=C.COLOR_PATH,
                   volume_raster_path=None, 
                   annotations_path=None, 
                   output_dir=None,

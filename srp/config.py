@@ -17,7 +17,7 @@ EXPERIMENT_NAME = 'default'
 
 #: Project root
 ROOT = os.path.abspath(os.path.join(os.path.realpath(__file__), os.pardir, os.pardir))
-print ROOT
+# print ROOT
 # Early / Layer Fusion Settings {{{
 
 
@@ -28,10 +28,10 @@ EARLY_FUSION = True
 #:
 #: One of:
 #:   :'cat': Concatenate the flattened output vectors of
-#:           the "bodys" of the net, then add a single
+#:           the "bodies" of the net, then add a single
 #:           hidden layer that reduces the number of
 #:           outputs by 2.
-#:   :'add': Add the flattened output vectors elementwise.
+#:   :'add': Add the flattened output vectors element-wise.
 #:
 LATE_FUSION_OPERATION = 'cat'
 # LATE_FUSION_OPERATION='add'
@@ -53,14 +53,19 @@ VOLUME_MAX_Z = 4 * FT
 # Train / Val / Test split {{{
 
 #: The path to the volumetric 6 channel data
-VOLUMETRIC_PATH = os.path.join(ROOT, 'data/interim/srp', 'lidar_volume.vrt')
+VOLUMETRIC_PATH = os.path.join(ROOT, 'data/interim/srp/stack_a4b2/lidar_volume.vrt')
 
 #: The path to the rgb image
-COLOR_PATH = os.path.join(ROOT, 'data/srp/sec11-26949.tif')
+COLOR_PATH = os.path.join(ROOT, 'data/raw/srp/sec11-26949.tif')
 
 #: The path to annotated box coordinates
 ANNOTATION_PATH = os.path.join(ROOT, 'data/raw/srp/box-annotations.geojson')
 
+#: The path to all sample coordinates (including positives and negs)
+SAMPLE_PATH = os.path.join(ROOT, 'data/interim/srp/sample_locations_epsg26949.npz')
+
+#: The path to which the script outputs .csv file
+CSV_DIR = os.path.join(ROOT, 'srp/data')
 #: The number of folds (cross validation)
 FOLDS = 5
 #: Which fold is current.

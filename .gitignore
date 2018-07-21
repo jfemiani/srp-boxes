@@ -90,3 +90,7 @@ ENV/
 
 # pycharm
 .idea/
+
+# folders
+data/raw/
+data/interim/
