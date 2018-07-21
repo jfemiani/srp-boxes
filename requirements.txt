@@ -6,6 +6,8 @@ rasterio
 shapely
 rtree
 graphviz
+pytest>=3.0
+laspy
 
 # torch   (must be manually installed)
 # torchvision

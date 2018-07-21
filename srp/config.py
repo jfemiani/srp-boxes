@@ -48,15 +48,31 @@ VOLUMETRIC_PATH = os.path.join(ROOT, 'data/interim/srp', 'lidar_volume.vrt')
 #: The path to the rgb image
 COLOR_PATH = os.path.join(ROOT, 'data/srp/sec11-26949.tif')
 
+#: The path to the volumetric 6 channel data
+VOLUMETRIC_PATH = os.path.join(ROOT, 'data/interim/srp/stack_a4b2/lidar_volume.vrt')
+
+#: The path to the rgb image
+COLOR_PATH = os.path.join(ROOT, 'data/raw/srp/sec11-26949.tif')
+
 #: The path to annotated box coordinates
 ANNOTATION_PATH = os.path.join(ROOT, 'data/raw/srp/box-annotations.geojson')
 
-#: The number of folds (cross validation)
-TRAINING_NUM_FOLDS = 5
+#: The path to all sample coordinates (including positives and negs)
+SAMPLE_PATH = os.path.join(ROOT, 'data/interim/srp/sample_locations_epsg26949.npz')
 
+#: The path to which the script outputs .csv file
+CSV_DIR = os.path.join(ROOT, 'srp/data')
+#: The number of folds (cross validation)
+# Volume File Settings {{{
+
+#: The raster source for volume data
+VOLUME_FILE = '{INT_DATA}/volume.tif'
+
+#: The CRS to use if the data is missing in the file
+VOLUME_DEFAULT_CRS = 'epsg:26949'  # AZ
 #: Which fold is current.
 TRAINING_CURRENT_FOLD = 1
-
+VOLUME_STEPS = 5
 #: The RNG for folds (for repeatability)
 FOLD_RANDOM_SEED = 127
 

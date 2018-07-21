@@ -1,6 +1,7 @@
 """ Generate modules for all combinations of settings we plan to test.
 
 """
+from builtins import str
 import os
 from collections import OrderedDict
 import itertools
@@ -80,9 +81,9 @@ def make_experiments(options, dirname=C.INT_DATA, progress=True):
     # Save the master list of experiments
     combos = [
         reversed(combo)
-        for combo in itertools.product(*reversed(options.values()))
+        for combo in itertools.product(*reversed(list(options.values())))
     ]
-    experiments = pd.DataFrame(combos, columns=options.keys())
+    experiments = pd.DataFrame(combos, columns=list(options.keys()))
     experiments.to_csv(os.path.join(dirname, 'experiments.csv'))
 
     # Make s folder and config file for each experiment

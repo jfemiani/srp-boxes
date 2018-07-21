@@ -1,4 +1,8 @@
+from __future__ import division
 
+from builtins import range
+from builtins import object
+from past.utils import old_div
 import pyproj
 import rasterio
 import numpy as np
@@ -37,7 +41,7 @@ class DataProvider(object):
                                            output_shape = rotated_patch[i].shape,
                                            output=rotated_patch[i])
         
-        x, y = int((source_patch.shape[2]-width)/2), int( (source_patch.shape[1]-height)/2)
+        x, y = int(old_div((source_patch.shape[2]-width),2)), int( old_div((source_patch.shape[1]-height),2))
         cropped_patch = rotated_patch[:, y:y+height, x:x+width].copy()
         return cropped_patch    
         
@@ -48,8 +52,8 @@ class DataProvider(object):
         c_2223, r_2223 = np.asarray(~self.colors.affine * (x_2223, y_2223)).astype(int)
         c, r = np.asarray(~self.densities.affine*(x, y)).astype(int)
                 
-        colors = self.colors.read(window=((r_2223-R, r_2223+R), (c_2223-R, c_2223+R)), 
-                                  boundless=True).astype(np.float32)/255.
+        colors = old_div(self.colors.read(window=((r_2223-R, r_2223+R), (c_2223-R, c_2223+R)), 
+                                  boundless=True).astype(np.float32),255.)
         
         densities = self.densities.read(window=((r-R, r+R), (c-R, c+R)),
                                         boundless=True).astype(np.float32)

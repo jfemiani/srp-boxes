@@ -4,7 +4,7 @@
 debug: requirements
 	pytest --doctest-modules -x --pdb
 
-requirements:
+requirements: requirements.txt
 	pip install --quiet -r requirements.txt
 
 test:

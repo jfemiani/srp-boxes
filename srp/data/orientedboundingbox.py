@@ -1,9 +1,13 @@
+from __future__ import division
 # given cx, cy, ux, uy, d, find 4 points
+from builtins import object
+from past.utils import old_div
 import numpy as np
 from math import hypot
+import shapely
+import matplotlib as plt
 
-
-class OutputRepresentations:
+class OrientedBoundingBox(object):
     def __init__(self, cx=0, cy=0, ux=0, uy=0, vd=0):
         self.cx = cx
         self.cy = cy
@@ -18,10 +22,20 @@ class OutputRepresentations:
         uay = np.sin(np.radians(deg))
         ux = uax * length / 2.
         uy = uay * length / 2.
-        vd = width / 2.
+        vd = old_div(width, 2.)
 
-        return OutputRepresentations(cx, cy, ux, uy, vd)
-
+        return OrientedBoundingBox(cx, cy, ux, uy, vd)
+    
+    @staticmethod
+    def get_rot_length_width_from_points(points):
+        """
+        return cx, cy, deg, length(2*ud), width(2*vd)
+        """
+        
+        oo = OrientedBoundingBox.from_points(points)
+        angle =  np.degrees(np.arctan2(oo.uy, oo.ux))
+        return np.array([oo.cx, oo.cy, angle, 2*oo.ud, 2*oo.vd])
+    
     @property
     def ud(self):
         return hypot(self.ux, self.uy)
@@ -32,7 +46,7 @@ class OutputRepresentations:
 
     @property
     def u_axis(self):
-        return np.array([self.ux, self.uy]) / self.ud
+        return old_div(np.array([self.ux, self.uy]), self.ud)
 
     @property
     def v_axis(self):
@@ -62,9 +76,9 @@ class OutputRepresentations:
     def from_points(points):
         ctr = points.mean(0)
         p = points - ctr
-        u = ((p[0] + p[3]) - (p[1] + p[2])) / 2.
+        u = old_div(((p[0] + p[3]) - (p[1] + p[2])), 2.)
         angle = np.arctan2(u[1], u[0])
-        angle = (angle + 2 * np.pi) % (np.pi / 2.)
+        angle = (angle + 2 * np.pi) % (old_div(np.pi, 2.))
         uax = np.cos(angle)
         uay = np.sin(angle)
         assert uax >= 0 and uay >= 0
@@ -73,4 +87,14 @@ class OutputRepresentations:
         vd = p.dot([-uay, uax]).max()
         ux, uy = ud * np.array([uax, uay])
 
-        return OutputRepresentations(ctr[0], ctr[1], ux, uy, vd)
+        return OrientedBoundingBox(ctr[0], ctr[1], ux, uy, vd)
+    
+    def shape(self):
+        return shapely.geometry.Polygon(self.points())
+    
+    def plot(self, ax):
+        if ax is None:
+            ax = plt.gca()
+            
+        ax.add_patch(plt.Polygon(self.points(), alpha=0.5, fill=False,  color='r'))
+        

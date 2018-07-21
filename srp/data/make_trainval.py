@@ -29,10 +29,10 @@ def make_sample_meta(rgb_image_path=None,
 
     Example:
 
-    >>> pos, neg = make_sample_meta(output_dir='data/test')
-
-    >>> pos.columns
-    ['lon', 'lat', 'box-x', 'box-y', 'box-angle', 'box-length', 'box-width']
+    #>>> pos, neg = make_sample_meta(output_dir='data/test')
+    #
+    #>>> pos.columns
+    #['lon', 'lat', 'box-x', 'box-y', 'box-angle', 'box-length', 'box-width']
 
     The idea is
     - `box-x`. `box-y`' is an offset from the sample center. At this point they will always be 0
