@@ -42,6 +42,7 @@ def make_experiments(options, dirname=C.INT_DATA, progress=True):
     ...     - orange
     ...     - yellow
     ... ''')
+    >>> os.makedirs('data/test', exist_ok=True)
     >>> make_experiments(options, dirname='data/test', progress=False)
     >>> os.path.isfile('data/test/experiments.csv')
     True
