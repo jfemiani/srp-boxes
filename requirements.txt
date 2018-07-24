@@ -8,6 +8,9 @@ rtree
 graphviz
 pytest>=3.0
 laspy
+configargparse
+oyaml
 
 # torch   (must be manually installed)
 # torchvision
+tqdm

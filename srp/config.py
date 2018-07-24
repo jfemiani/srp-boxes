@@ -43,7 +43,7 @@ VOLUME_Z_MAX = 4 * FT
 # Train / Val / Test split {{{
 
 #: The path to the volumetric 6 channel data
-VOLUMETRIC_PATH = os.path.join(ROOT, 'data/interim/srp', 'lidar_volume.vrt')
+#  WRONG: VOLUMETRIC_PATH = os.path.join(ROOT, 'data/interim/srp', 'lidar_volume.vrt')
 
 #: The path to the rgb image
 COLOR_PATH = os.path.join(ROOT, 'data/srp/sec11-26949.tif')
@@ -76,6 +76,14 @@ VOLUME_STEPS = 5
 #: The RNG for folds (for repeatability)
 FOLD_RANDOM_SEED = 127
 
+#: The minimum threshold density within the first two layers when picking negative samples
+MIN_DENSITY_COUNT = 15
+
+#: Patch size
+PATCH_SIZE = 64
+
+#: The maximum offset when jittering each sample
+MAX_OFFSET = 0.5
 # }}}
 
 # Class balancing & Sampling {{{

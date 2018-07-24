@@ -1,9 +1,13 @@
+# doctest: +NORMALIZE_WHITESPACE
 """
 Process a vector file to produce positive and negative samples.
 """
+
 from __future__ import division
 from __future__ import print_function
 import fiona
+from srp.data.orientedboundingbox import OrientedBoundingBox as oo
+from shapely.ops import cascaded_union
 import numpy as np
 import shapely.geometry as sg
 import pandas as pd
@@ -12,190 +16,114 @@ from os import path
 import random
 import srp.config as C
 
-
 class SampleCSV:
     def __init__(self,
                  rgb_path=C.COLOR_PATH,
                  volume_path=C.VOLUMETRIC_PATH,
                  annotation_path=C.ANNOTATION_PATH,
-                 outdir=C.CSV_DIR):
+                 outdir=C.CSV_DIR,
+                 min_seperation=C.MIN_SEPARATTION,
+                 threshold=C.MIN_DENSITY_COUNT
+                 ):
 
         self.rgb_path = rgb_path
         self.volume_path = volume_path
         self.annotation_path = annotation_path
+        self.min_seperation = min_seperation
+        self.threshold = threshold
+        
+        suffix = C.VOLUME_DEFAULT_CRS.replace(':','')
+        self.csv_dir = outdir
+        self.posdir = '{}/positives_{}.csv'.format(self.csv_dir, suffix)
+        self.negdir = '{}/negatives_{}.csv'.format(self.csv_dir, suffix)
+        
         with fiona.open(self.annotation_path) as vectorFile:
             self.hotspots = np.array([
                 f['geometry']['coordinates'] for f in vectorFile
                 if f['geometry'] is not None
             ])
-        self.csv_dir = outdir
+        
 
     def _get_tight_rectangle_info(self, box):
+        # doctest: +NORMALIZE_WHITESPACE
+        """
+        Return: returns center-x, center-y, rotation, length, width of the box
+        Example:
+            >>> sc = SampleCSV()
+            >>> sc._get_tight_rectangle_info(box=np.array([[0,0],
+            ...                                         [0,1],
+            ...                                         [2,1],
+            ...                                         [2,0]])) # doctest: +NORMALIZE_WHITESPACE
+            array([ 1. ,  0.5,  0. ,  2. ,  1. ])
+        """
         p = sg.Polygon(box)
-        return np.array(p.minimum_rotate_rectangle.exterior)[:-1]
+        return oo.get_rot_length_width_from_points(np.array(p.minimum_rotated_rectangle.exterior)[:-1])
 
-    def make_positive_csv(self):
+    def make_pos_csv(self):
         pos_samples = np.array(
             [self._get_tight_rectangle_info(b) for b in self.hotspots])
-        posdir = '{}/positives_epsg26949.csv'.format(self.csv_dir)
-
+        
         colnames = [
             'orig-x', 'orig-y', 'box-ori-deg', 'box-ori-length',
             'box-ori-width'
         ]
         posdf = pd.DataFrame(data=pos_samples, columns=colnames)
-
-        posdf.to_csv(path_or_buf=posdir, index=False)
-        print("Positive data .csv file saved as {}").format(posdir)
-
-
-# def find_center(v1, v2):
-#     """calculates correct center given the feature vertices are labeled clockwise"""
-#     diff = v2 - v1
-#     magnitude = np.linalg.norm(diff)
-#     mid = (v1 + v2) / 2.
-#     perp = np.array([diff[1], -diff[0]])
-#     unit_vec = perp / np.linalg.norm(perp)
-#     return mid + .5 * magnitude * unit_vec
-
-# def get_angle(feature):
-#     diff = feature[2] - feature[1]
-#     return np.arctan2(diff[1], diff[0]) * 180 / np.pi
-
-# def check_vector(vectorPath):
-#     """
-#     :param vector_path: in the format of .geojson. This file includes features that we labeled manually
-#     This function checks the manually labeled vector file, so that it can safely proceed to the next step
-#     1) checks duplicates in the vector file and removes duplicates
-#     2) checks features of the wrong size: eg for boxes their should be 4 coordinates each
-#     3) Checks if our method of finding the centroid for all samples works
-#     :return:
-#     """
-#     with fiona.open(vectorPath) as vectorFile:
-#         hotspots = [np.array(f['geometry']['coordinates']) for f in vectorFile if f['geometry'] is not None]
-
-#     duplicate = [idx for idx in range(len(hotspots) - 1) if np.array_equal(hotspots[idx], hotspots[idx + 1])]
-#     hotspots = np.delete(hotspots, duplicate, axis=0)
-#     if duplicate:
-#         print "Deleted Indices {} which are duplicates".format(duplicate)
-#     else:
-#         print "No duplicated features found."
-
-#     wrong_size = [idx for idx in range(len(hotspots)) if hotspots[idx].size != 8]
-#     if wrong_size:
-#         print "Indices {} are of the wrong size, please fix them.".format(wrong_size)
-#     else:
-#         print "All features consists of 4 coordinates."
-
-#     assert len(wrong_size) == 0
-#     pos_xy = [find_center(hotspots[idx][1], hotspots[idx][2]) for idx in range(len(hotspots))]
-
-#     weird = []
-#     for idx in range(len(pos_xy)):
-#         pt = Point(pos_xy[idx][0], pos_xy[idx][1])
-#         b = Polygon(hotspots[idx])
-#         if not pt.within(b):
-#             weird.append(idx)
-#             hotspots[idx] = np.flipud(hotspots[idx])  # reverse the order of vertices
-#             pos_xy[idx] = find_center(hotspots[idx][1], hotspots[idx][2])
-#     if not weird:
-#         print "All features are labeled clockwise, ready to proceed. Returning box and centroid coordinates."
-#         return hotspots, pos_xy
-#     else:
-#         print "Indices {} are not labeled clockwise, flipped those, please check them.".format(weird)
-
-# def make_segmentation_ground_truth(vector_path, density_path):
-#     """
-#     Makes a mask for segmentation training.The output has same width and height as the LiDAR file.
-#     :param vector_path: manually labeled ground truth, boxes
-#     :param density_path: LiDAR stack
-#     :return:
-#     """
-#     vectorFile = fiona.open(vector_path)
-#     polygons = [f['geometry'] for f in vectorFile]
-#     for i in range(len(polygons)):
-#         polygons[i]['type'] = 'Polygon'
-#         polygons[i]['coordinates'] = [polygons[i]['coordinates'] + polygons[i]['coordinates'][:1]]
-
-#     densities = rasterio.open(density_path)
-#     out = rasterio.features.geometry_mask(polygons,
-#                                           out_shape=(densities.height, densities.width),
-#                                           transform=densities.affine,
-#                                           all_touched=True,
-#                                           invert=True)
-#     return out
-
-# class ProcessVector(object):
-#     def __init__(self, vector_path, densities_path, pos_path, outdir, roi=None):
-#         """
-#         :param vector_path: in the format of .geojson. This file includes features that we labeled manually
-#         :param densities_path: the LiDAR stack
-#         :param the tif file where 1 indicates isbox and 0 indicates not a box
-#         """
-#         super(ProcessVector, self).__init__()
-#         self.vectorPath = vector_path
-#         self.outdir = outdir
-#         self.vectorFile = fiona.open(self.vectorPath)
-#         self.hotspots, self.pos_xy = check_vector(self.vectorPath)
-
-#         assert self.pos_xy
-
-#         self.densitiesPath = densities_path
-#         self.densities = rasterio.open(self.densitiesPath)
-#         self.posPath = pos_path
-#         self.pos_regions = rasterio.open(self.posPath)
-
-#         self.bounds = tuple((max(self.pos_regions.bounds.left, self.densities.bounds.left),
-#                              max(self.pos_regions.bounds.bottom, self.densities.bounds.bottom),
-#                              min(self.pos_regions.bounds.right, self.densities.bounds.right),
-#                              min(self.pos_regions.bounds.top, self.densities.bounds.top))) if roi is None else roi
-#         self.neg_xy = []
-#         self.pos_angles = []
-
-#     def _open_datasets(self):
-
-#         assert isinstance(self.densities, RasterReader)
-#         window1 = self.densities.window(*self.bounds, boundless=True)
-#         self.tfm = self.densities.window_transform(window1)
-#         self.full_stack = self.densities.read((1, 2, 3), window=window1, boundless=True)
-
-#         window2 = self.pos_regions.window(*self.bounds, boundless=True)
-#         self.full_posregions = self.pos_regions.read(1,
-#                                                      window=window2,
-#                                                      out_shape=(self.full_stack.shape[1], self.full_stack.shape[2]),
-#                                                      boundless=True).astype(bool)
-
-#     def make_samples(self):
-#         self.pos_angles = [get_angle(self.hotspots[idx]) for idx in range(len(self.hotspots))]
-#         self.make_negs()
-#         np.savez(path.join(self.outdir, "sample_locations"),
-#                  pos_xy=self.pos_xy,
-#                  pos_angles=self.pos_angles,
-#                  neg_xy = self.neg_xy[::16])
-#         #return {'pos_xy': self.pos_xy, 'pos_angle': self.pos_angles, 'neg_xy': self.neg_xy}
-
-#     def make_negs(self):
-#         self._open_datasets()
-
-#         mask = self.full_stack[:2].sum(0) > 9
-#         mask[:, :64] = False
-#         mask[:, -64:] = False
-#         mask[:64, :] = False
-#         mask[-64:, :] = False
-
-#         neg_xy = np.where(mask & ~self.full_posregions)
-#         neg_xy = np.column_stack(neg_xy)
-#         neg_xy = np.roll(neg_xy, 1, 1)
-#         self.neg_xy = np.array(self.tfm * neg_xy.T).T
-
-# def fixme_pick_samples(vol, w):
-#     # vol is an np array
-#     samples = []
-#     for r in range(0. vol.size[0], w):
-#         for c in range(0, vol.size[1], w):
-#             sub = vol[r:r+w, c:c+w, :].sum(2).flatten()
-#             positions = np.where(sub > threshold)[]
-#             sample_indices, ignored = random.choice(len(positions))
-#             sub_samples = positions[sample_indices]
-#             samples.append(sub_samples)
-#     samples = np.concatenate(samples)
+        posdf.to_csv(path_or_buf=self.posdir, index=False)
+        
+        print("Positive data .csv file saved as {}".format(self.posdir))
+        
+    def _read_densities(self):
+        densities = rasterio.open(self.volume_path)
+        colors = rasterio.open(self.rgb_path)
+        
+        self.bounds = tuple((max(densities.bounds.left, colors.bounds.left),
+                             max(densities.bounds.bottom, colors.bounds.bottom),
+                             min(densities.bounds.right, colors.bounds.right),
+                             min(densities.bounds.top, colors.bounds.top)))
+        
+        window = densities.window(*self.bounds)
+        stack = densities.read([3,4], window=window, boundless=True)
+        tfm = densities.window_transform(window)
+        return stack, tfm
+    
+    
+    def _get_batch_negs(self, mask, tfm, positive_regions, w=500):
+        # vol is an np array
+        negs = []
+        for r in range(0, mask.shape[0], w):
+            for c in range(0, mask.shape[1], w):
+                rows, cols = np.where(mask[r:r+w, c:c+w])
+                if len(rows) == 0:        # no positive sample
+                    continue
+                for i in range(10):
+                    idx = np.random.randint(rows.shape[0])         # np.random.choice(len(rows))
+                    coords = tfm * np.array([c + cols[idx], r + rows[idx]]) # (row, col) flipped
+                    if not positive_regions.contains(sg.Point(coords)):
+                        negs.append(coords)
+                        break
+        return np.array(negs)
+    
+        
+    def make_neg_csv(self):
+        pos_xy = pd.read_csv(self.posdir).iloc[:,:2].values
+        num_of_negs = C.NUM_SAMPLES - len(pos_xy)
+        
+        stack, tfm = self._read_densities()
+        positive_regions = cascaded_union([sg.Point(*center.T).buffer(self.min_seperation) for center in pos_xy])        
+        
+        mask = stack.sum(0) > C.MIN_DENSITY_COUNT
+        mask[:, :C.PATCH_SIZE] = False
+        mask[:, -C.PATCH_SIZE:] = False
+        mask[:C.PATCH_SIZE, :] = False
+        mask[-C.PATCH_SIZE:, :] = False
+        
+        negs = self._get_batch_negs(mask, tfm, positive_regions, w=500)
+        while len(negs) < num_of_negs:
+            np.vstack((negs, self._get_batch_negs(mask, positive_regions, w=500)))
+        
+        negs = negs[np.random.choice(negs.shape[0], size=num_of_negs, replace=False)]
+        
+        colnames = ['orig-x', 'orig-y']
+        negdf = pd.DataFrame(data=negs, columns=colnames)
+        negdf.to_csv(path_or_buf=self.negdir, index=False)
+        print("Negative data .csv file saved as {}".format(self.negdir))
