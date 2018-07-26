@@ -20,6 +20,9 @@ from srp.units import FT, M
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(srp.__file__)))
 INT_DATA = os.path.join(ROOT, 'data', 'interim')
 RAW_DATA = os.path.join(ROOT, 'data', 'raw')
+POS_DATA = os.path.join(INT_DATA, 'srp/samples/pos')
+NEG_DATA = os.path.join(INT_DATA, 'srp/samples/neg')
+
 # }}}
 
 # Volume File Settings {{{
@@ -70,6 +73,9 @@ VOLUME_FILE = '{INT_DATA}/volume.tif'
 
 #: The CRS to use if the data is missing in the file
 VOLUME_DEFAULT_CRS = 'epsg:26949'  # AZ
+
+#: Total number of folds
+FOLDS = 5
 #: Which fold is current.
 TRAINING_CURRENT_FOLD = 1
 VOLUME_STEPS = 5
@@ -83,7 +89,10 @@ MIN_DENSITY_COUNT = 15
 PATCH_SIZE = 64
 
 #: The maximum offset when jittering each sample
-MAX_OFFSET = 0.5
+MAX_OFFSET = 15
+
+#: A constant needed for scaling 
+METERS_PER_PIXEL=0.0499
 # }}}
 
 # Class balancing & Sampling {{{
