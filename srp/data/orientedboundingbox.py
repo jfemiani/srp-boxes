@@ -36,6 +36,10 @@ class OrientedBoundingBox(object):
         angle =  np.degrees(np.arctan2(oo.uy, oo.ux))
         return np.array([oo.cx, oo.cy, angle, 2*oo.ud, 2*oo.vd])
     
+#     def rot_length_width(self):
+#         angle = np.degrees(np.arctan2(self.uy, self.ux))
+#         return np.array([self.cx, self.cy, angle, 2*self.ud, 2*self.vd])
+    
     @property
     def ud(self):
         return hypot(self.ux, self.uy)

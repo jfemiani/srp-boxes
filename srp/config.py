@@ -116,4 +116,7 @@ MIN_SEPARATTION = 2 * M
 #: and we draw samples according to the weights.
 HARD_SAMPLING = True
 
+#: The number of precomputed variations for each positive and negative sample
+NUM_PRECOMPUTE_VARIATION = 20
+
 # }}}

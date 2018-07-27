@@ -9,6 +9,7 @@ import pandas as pd
 from srp.data.orientedboundingbox import OrientedBoundingBox
 from collections import namedtuple
 from skimage.transform import rotate
+from tqdm import tqdm
 
 Patch = namedtuple("Patch",["obb", "volumetric", "rgb", "label","dr_dc_angle", "ori_xy"])
 
@@ -65,6 +66,7 @@ class DataAugment:
         cropped_patch = rotated_patch[:, R + dy: 3*R + dy, R - dx : 3 * R - dx]
         
         return cropped_patch
+    
     def make_originals(self):
         self.make_positive_originals(radius_in_pixels=C.PATCH_SIZE)
         self.make_negative_originals(radius_in_pixels=C.PATCH_SIZE)
@@ -99,15 +101,17 @@ class DataAugment:
                 pickle.dump(p, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     
-    def make_next_batch_variations(self, number_of_variations=20):
-        top = os.path.join(C.INT_DATA, "srp/samples")
+    def make_next_batch_variations(self, cache_dir = None, number_of_variations=20):
+        top = cache_dir or os.path.join(C.INT_DATA, "srp/samples")
         origs = glob.glob(os.path.join(top, "*/*/*_orig.pickle"), recursive=False)
-        for origd in origs:
-            with open(origd, 'rb') as handle:
+        
+        for i in tqdm(range(len(origs)), desc='augmenting', leave=False):
+        # for origd in origs:
+            with open(origs[i], 'rb') as handle:
                 p = pickle.load(handle)
                 for i in range(number_of_variations):
                     var = self._augment(p, radius=C.PATCH_SIZE/2)
-                    with open(origd.replace("orig", "var{0:02d}".format(i+1)), 'wb') as handle:
+                    with open(origs[i].replace("orig", "var{0:02d}".format(i+1)), 'wb') as handle:
                         pickle.dump(var, handle, protocol=pickle.HIGHEST_PROTOCOL)
     
     def _augment(self, p, radius):
@@ -130,8 +134,6 @@ class DataAugment:
             rgb = cropped_patch[:3]
             volumetric = cropped_patch[3:]
 
-        # ori_xy = (p.ori_xy[0], p.ori_xy[0]-dr*C.METERS_PER_PIXEL)        # not sure about this
-
         if p.label:
             R = affine.Affine.rotation(rotate_angle)
             T = affine.Affine.translation(dr, dc)
@@ -139,7 +141,17 @@ class DataAugment:
 
             after = np.vstack(A * p.obb.points().T).T
             obb = OrientedBoundingBox.from_points(after)
-            return Patch(obb=obb, ori_xy=p.ori_xy, rgb=rgb, label=p.label, volumetric=volumetric,dr_dc_angle=(dr, dc, rotate_angle))
+#             return Patch(obb=obb, 
+#                          ori_xy=p.ori_xy, 
+#                          rgb=cropped_patch[:3], 
+#                          label=p.label, 
+#                          volumetric=cropped_patch[3:],
+#                          dr_dc_angle=(dr, dc, rotate_angle))
 
-        return Patch(obb=None, ori_xy=p.ori_xy, rgb=rgb, label=p.label, volumetric=volumetric, dr_dc_angle=(dr, dc, rotate_angle))
+        return Patch(obb=p.obb, 
+                     ori_xy=p.ori_xy, 
+                     rgb=cropped_patch[:3], 
+                     label=p.label, 
+                     volumetric=cropped_patch[3:], 
+                     dr_dc_angle=(dr, dc, rotate_angle))
     
