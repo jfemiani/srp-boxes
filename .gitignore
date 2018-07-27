@@ -1,3 +1,7 @@
+# Ignore data (unless overridden)
+data/*
+!data/Makefile
+
 .pytest_cache/
 # Byte-compiled / optimized / DLL files
 __pycache__/
