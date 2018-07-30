@@ -10,15 +10,13 @@ class RgbLidarDataset(Dataset):
     def __init__(self, txt_dir):
         """
         
-        txt_dir: a PosixPath object specifying the path of the .txt which stores train (or test) sample indices.  
+        txt_dir: a PosixPath object which specify the path of the .txt which stores train (or test) sample indices.  
         """
         super().__init__()
         data = np.loadtxt(txt_dir.as_posix(), dtype=np.uint32, delimiter=',')
-        self.df = pd.DataFrame(data, columns=['label', 'index'])
-        # self.data = data
-        # self.transform = transform
+        self.df = pd.DataFrame(data, columns=['label', 'idx'])
         self.pre_augmented = False
-        self.cache_dir = Path(C.INT_DATA)/"samples"
+        self.cache_dir = Path(C.INT_DATA)/"srp/samples"
         self.num_variants = C.NUM_SAMPLES
     
     def pre_augment(self, cache_dir=None, num_variants=C.NUM_SAMPLES, force_recompute=False):
@@ -34,8 +32,12 @@ class RgbLidarDataset(Dataset):
         self.pre_augmented = True
         self.num_variants = num_variants
     
-    def _load_random_pickle(path):
-        ppath = list(path.glob("*_var*.pickle"))[np.random.randint(C.NUM_PRECOMPUTE_VARIATION)]
+    def _load_random_pickle(self, path):
+        # print (path)
+        i = np.random.randint(C.NUM_PRECOMPUTE_VARIATION)
+        # print (i)
+        # print (len(list(path.glob("*_var*.pickle"))))
+        ppath = list(path.glob("*_var*.pickle"))[i]
         with open(ppath.as_posix(), 'rb') as handle:
             p = pickle.load(handle)
         if p.obb:
@@ -43,23 +45,15 @@ class RgbLidarDataset(Dataset):
             y = np.array([p.obb.cx, p.obb.cy, angle, 2*p.obb.ud, 2*p.obb.vd])
         else:
             y = np.zeros((5))
-        return (p.rgb.transpose(1,2,0), p.volumetric.transpose(1,2,0)), (p.label, y)
+        return np.concatenate((p.rgb, p.volumetric)), (p.label, y)
     
     def __getitem__(self, index):
         rec = self.df.iloc[index]
-        # if self.pre_augmented:
         label = "pos" if rec.label == 1 else "neg"
-        sindex = "s{0:05d}".format(rec.index)
+        sindex = "s{0:05d}".format(rec.idx)
         X, y = self._load_random_pickle(self.cache_dir/label/sindex)
-#         else:
-#             cache_path = self.cache_dir/Path(rec.id)
-#             j = randint(self.num_variants)
-#             variant_path = cache_path/f"{j}.npz"
-#             npz = np.load(variant_path)
-#             x = npz['x']
-#             y = npz['y']
         
         return X, y
     
     def __len__(self):
-        return len(self.data)
+        return len(self.df)

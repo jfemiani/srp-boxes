@@ -11,7 +11,6 @@ results go with which settings
 """
 
 import os
-
 import srp
 from srp.units import FT, M
 
@@ -61,7 +60,7 @@ COLOR_PATH = os.path.join(ROOT, 'data/raw/srp/sec11-26949.tif')
 ANNOTATION_PATH = os.path.join(ROOT, 'data/raw/srp/box-annotations.geojson')
 
 #: The path to all sample coordinates (including positives and negs)
-SAMPLE_PATH = os.path.join(ROOT, 'data/interim/srp/sample_locations_epsg26949.npz')
+# SAMPLE_PATH = os.path.join(ROOT, 'data/interim/srp/sample_locations_epsg26949.npz')
 
 #: The path to which the script outputs .csv file
 CSV_DIR = os.path.join(ROOT, 'srp/data')

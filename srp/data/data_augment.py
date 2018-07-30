@@ -141,12 +141,6 @@ class DataAugment:
 
             after = np.vstack(A * p.obb.points().T).T
             obb = OrientedBoundingBox.from_points(after)
-#             return Patch(obb=obb, 
-#                          ori_xy=p.ori_xy, 
-#                          rgb=cropped_patch[:3], 
-#                          label=p.label, 
-#                          volumetric=cropped_patch[3:],
-#                          dr_dc_angle=(dr, dc, rotate_angle))
 
         return Patch(obb=p.obb, 
                      ori_xy=p.ori_xy, 
