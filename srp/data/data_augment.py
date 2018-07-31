@@ -101,51 +101,51 @@ class DataAugment:
                 pickle.dump(p, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     
-    def make_next_batch_variations(self, cache_dir = None, number_of_variations=20):
-        top = cache_dir or os.path.join(C.INT_DATA, "srp/samples")
-        origs = glob.glob(os.path.join(top, "*/*/*_orig.pickle"), recursive=False)
+#     def make_next_batch_variations(self, cache_dir = None, number_of_variations=20):
+#         top = cache_dir.as_posix() or os.path.join(C.INT_DATA, "srp/samples")
+#         origs = glob.glob(os.path.join(top, "*/*/*_orig.pickle"), recursive=False)
         
-        for i in tqdm(range(len(origs)), desc='augmenting', leave=False):
-        # for origd in origs:
-            with open(origs[i], 'rb') as handle:
-                p = pickle.load(handle)
-                for i in range(number_of_variations):
-                    var = self._augment(p, radius=C.PATCH_SIZE/2)
-                    with open(origs[i].replace("orig", "var{0:02d}".format(i+1)), 'wb') as handle:
-                        pickle.dump(var, handle, protocol=pickle.HIGHEST_PROTOCOL)
+#         for i in tqdm(range(len(origs)), desc='augmenting', leave=False):
+#         # for origd in origs:
+#             with open(origs[i], 'rb') as handle:
+#                 p = pickle.load(handle)
+#                 for i in range(number_of_variations):
+#                     var = self._augment(p, radius=C.PATCH_SIZE/2)
+#                     with open(origs[i].replace("orig", "var{0:02d}".format(i+1)), 'wb') as handle:
+#                         pickle.dump(var, handle, protocol=pickle.HIGHEST_PROTOCOL)
     
-    def _augment(self, p, radius):
-        radius = int(radius)
-        dr = int(np.random.uniform(-1,1) * C.MAX_OFFSET)
-        dc = int(np.random.uniform(-1,1) * C.MAX_OFFSET)
-        rotate_angle = np.random.rand() * 360
-        p_center = int(p.volumetric.shape[1]/2)
+#     def _augment(self, p, radius):
+#         radius = int(radius)
+#         dr = int(np.random.uniform(-1,1) * C.MAX_OFFSET)
+#         dc = int(np.random.uniform(-1,1) * C.MAX_OFFSET)
+#         rotate_angle = np.random.rand() * 360
+#         p_center = int(p.volumetric.shape[1]/2)
 
-        source_patch = np.concatenate((p.rgb, p.volumetric))
-        rotated_patch = np.zeros((source_patch.shape))
+#         source_patch = np.concatenate((p.rgb, p.volumetric))
+#         rotated_patch = np.zeros((source_patch.shape))
 
-        for i in range(len(source_patch)):
-            rotated_patch[i] = rotate(source_patch[i], rotate_angle, preserve_range=True)
+#         for i in range(len(source_patch)):
+#             rotated_patch[i] = rotate(source_patch[i], rotate_angle, preserve_range=True)
 
 
-            cropped_patch = rotated_patch[:, 
-                                          p_center-radius+dc: p_center+radius+dc, 
-                                          p_center-radius-dr: p_center+radius-dr]      
-            rgb = cropped_patch[:3]
-            volumetric = cropped_patch[3:]
+#             cropped_patch = rotated_patch[:, 
+#                                           p_center-radius+dc: p_center+radius+dc, 
+#                                           p_center-radius-dr: p_center+radius-dr]      
+#             rgb = cropped_patch[:3]
+#             volumetric = cropped_patch[3:]
 
-        if p.label:
-            R = affine.Affine.rotation(rotate_angle)
-            T = affine.Affine.translation(dr, dc)
-            A = T*R
+#         if p.label:
+#             R = affine.Affine.rotation(rotate_angle)
+#             T = affine.Affine.translation(dr, dc)
+#             A = T*R
 
-            after = np.vstack(A * p.obb.points().T).T
-            obb = OrientedBoundingBox.from_points(after)
+#             after = np.vstack(A * p.obb.points().T).T
+#             obb = OrientedBoundingBox.from_points(after)
 
-        return Patch(obb=p.obb, 
-                     ori_xy=p.ori_xy, 
-                     rgb=cropped_patch[:3], 
-                     label=p.label, 
-                     volumetric=cropped_patch[3:], 
-                     dr_dc_angle=(dr, dc, rotate_angle))
+#         return Patch(obb=p.obb, 
+#                      ori_xy=p.ori_xy, 
+#                      rgb=cropped_patch[:3], 
+#                      label=p.label, 
+#                      volumetric=cropped_patch[3:], 
+#                      dr_dc_angle=(dr, dc, rotate_angle))
     

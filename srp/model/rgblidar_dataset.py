@@ -1,11 +1,20 @@
 import pickle
+import affine
 import pandas as pd
 import srp.config as C
+import os
+import sys
 import numpy as np
 from srp.data.data_augment import DataAugment
+from srp.data.orientedboundingbox import OrientedBoundingBox
 from pathlib import Path
+from tqdm import tqdm
+from collections import namedtuple
 from torch.utils.data import Dataset
+from skimage.transform import rotate
 
+
+Patch = namedtuple("Patch",["obb", "volumetric", "rgb", "label","dr_dc_angle", "ori_xy"])
 class RgbLidarDataset(Dataset):
     def __init__(self, txt_dir):
         """
@@ -15,11 +24,16 @@ class RgbLidarDataset(Dataset):
         super().__init__()
         data = np.loadtxt(txt_dir.as_posix(), dtype=np.uint32, delimiter=',')
         self.df = pd.DataFrame(data, columns=['label', 'idx'])
-        self.pre_augmented = False
+        # self.pre_augmented = False
         self.cache_dir = Path(C.INT_DATA)/"srp/samples"
-        self.num_variants = C.NUM_SAMPLES
+        self.num_variants = C.NUM_PRECOMPUTE_VARIATION
     
-    def pre_augment(self, cache_dir=None, num_variants=C.NUM_SAMPLES, force_recompute=False):
+    def _get_orig_dir(self, top, isbox, idx):
+        label_dir = "pos" if isbox else "neg"
+        idx_dir = "s{0:05d}".format(idx)
+        return top/label_dir/idx_dir/"{}_orig.pickle".format(idx_dir)
+        
+    def pre_augment(self, cache_dir=None, num_variants=C.NUM_PRECOMPUTE_VARIATION, force_recompute=False):
         """Precompute the data augmentation and cache it. 
         
         :param cach_dir: A mirror of the TRAINVAL folder that will hold variations on each input
@@ -27,31 +41,76 @@ class RgbLidarDataset(Dataset):
         :param force_recompute: Whether the cach should be replaced (True) or reused if present (False)
         """
         cache_dir = cache_dir or self.cache_dir
-        da = DataAugment(cache_dir)
-        da.make_next_batch_variations(cache_dir, 20)
-        self.pre_augmented = True
-        self.num_variants = num_variants
+        
+        for i in tqdm(range(len(self.df)), desc='augmenting', file=sys.stdout, leave=False):
+            rec = self.df.iloc[i]
+            orig_dir = self._get_orig_dir(cache_dir, rec.label, rec.idx).as_posix()
+            with open(orig_dir, 'rb') as handle:
+            # with orig_dir.open() as handle:
+                p = pickle.load(handle)
+                for i in range(self.num_variants):
+                    var = self._augment(p, radius=C.PATCH_SIZE/2)
+                    with open(orig_dir.replace("orig", "var{0:02d}".format(i+1)), 'wb') as handle:
+                        pickle.dump(var, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        
     
-    def _load_random_pickle(self, path):
-        # print (path)
+    def _augment(self, p, radius):
+        radius = int(radius)
+        dr = int(np.random.uniform(-1,1) * C.MAX_OFFSET)
+        dc = int(np.random.uniform(-1,1) * C.MAX_OFFSET)
+        rotate_angle = np.random.rand() * 360
+        p_center = int(p.volumetric.shape[1]/2)
+
+        source_patch = np.concatenate((p.rgb, p.volumetric))
+        rotated_patch = np.zeros((source_patch.shape))
+
+        for i in range(len(source_patch)):
+            rotated_patch[i] = rotate(source_patch[i], rotate_angle, preserve_range=True)
+
+
+            cropped_patch = rotated_patch[:, 
+                                          p_center-radius+dc: p_center+radius+dc, 
+                                          p_center-radius-dr: p_center+radius-dr]      
+            rgb = cropped_patch[:3]
+            volumetric = cropped_patch[3:]
+            obb = p.obb
+            
+        if p.label:
+            R = affine.Affine.rotation(rotate_angle)
+            T = affine.Affine.translation(dr, dc)
+            A = T*R
+
+            after = np.vstack(A * p.obb.points().T).T
+            obb = OrientedBoundingBox.from_points(after)
+
+        return Patch(obb=obb, 
+                     ori_xy=p.ori_xy, 
+                     rgb=cropped_patch[:3], 
+                     label=p.label, 
+                     volumetric=cropped_patch[3:], 
+                     dr_dc_angle=(dr, dc, rotate_angle))    
+        
+        
+    
+    def _load_random_pickle(self, sample_path):
         i = np.random.randint(C.NUM_PRECOMPUTE_VARIATION)
-        # print (i)
-        # print (len(list(path.glob("*_var*.pickle"))))
-        ppath = list(path.glob("*_var*.pickle"))[i]
+        # print (sample_path.name)
+        sample_name = sample_path.name
+        variation = '{}_var{:02}.pickle'.format(sample_name, i+1)
+        ppath = sample_path/variation
         with open(ppath.as_posix(), 'rb') as handle:
             p = pickle.load(handle)
         if p.obb:
-            angle =  np.degrees(np.arctan2(p.obb.uy, p.obb.ux))
-            y = np.array([p.obb.cx, p.obb.cy, angle, 2*p.obb.ud, 2*p.obb.vd])
+            y = (1, p.obb.points())
         else:
-            y = np.zeros((5))
-        return np.concatenate((p.rgb, p.volumetric)), (p.label, y)
+            y = (0, np.zeros((4, 2)))
+        return np.concatenate((p.rgb, p.volumetric)), y
     
     def __getitem__(self, index):
         rec = self.df.iloc[index]
         label = "pos" if rec.label == 1 else "neg"
-        sindex = "s{0:05d}".format(rec.idx)
-        X, y = self._load_random_pickle(self.cache_dir/label/sindex)
+        sample_name = "s{0:05d}".format(rec.idx)
+        X, y = self._load_random_pickle(self.cache_dir/label/sample_name)
         
         return X, y
     
