@@ -18,8 +18,22 @@ Patch = namedtuple("Patch",["obb", "volumetric", "rgb", "label","dr_dc_angle", "
 class RgbLidarDataset(Dataset):
     def __init__(self, txt_dir):
         """
-        
-        txt_dir: a PosixPath object which specify the path of the .txt which stores train (or test) sample indices.  
+        This class is design to use in conjunction with the pytorch dataloader class
+        txt_dir: a PosixPath object which specify the path of the .txt which stores train (or test) sample indices.
+        >>> trn_data = RgbLidarDataset(trn_txt)
+        >>> dl = DataLoader(trn_data, batch_size=128, shuffle=True, num_workers=3)
+        >>> trn_data.preaugment(num_variants=20)      #generates 20 samples for every record in trn_txt
+        >>> X, y = dl.__iter__().next()         
+        >>> X.shape
+        ... torch.Size([128, 9, 64, 64])
+        >>> len(y)
+        ... 2
+        >>> y[0].shape         # here are all the isbox labels
+        ... torch.Size([128])
+        >>> y[1].shape         # here are all the four corners. Negative samples are np.zero((4,2))
+        ... torch.Size([128, 4, 2])
+
+        Note that the lenght of the dataset is the number of rows in trn_txt. Please specify epoch length accordingly.
         """
         super().__init__()
         data = np.loadtxt(txt_dir.as_posix(), dtype=np.uint32, delimiter=',')
