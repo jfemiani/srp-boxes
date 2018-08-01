@@ -18,6 +18,11 @@ setup(
     author='Xian Liu',
     author_email='liux13@miamioh.edu',
     url='https://github.com/liux13/srp-boxes',
-    licens='MIT',
+    license='MIT',
     keywords='lidar box detection',
+
+    # Use pytest
+    setup_requires=["pytest-runner"],
+    tests_require=["pytest"],
+
 )
