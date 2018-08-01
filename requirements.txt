@@ -10,6 +10,11 @@ pytest>=3.0
 laspy
 configargparse
 oyaml
+future
+scipy
+scikit-image
+scikit-learn
+fiona
 
 # torch   (must be manually installed)
 # torchvision

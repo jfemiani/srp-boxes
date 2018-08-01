@@ -26,24 +26,24 @@ class SampleCSV:
                  threshold=C.MIN_DENSITY_COUNT,
                  total_num_of_samples=C.NUM_SAMPLES
                  ):
-    """
-    This class primarily reads its parameters from the 'config.py' file. Please specify your parameters there.
-    Given a very high resolution orthograph, a pre-processed lidar density file and human labeled '.geojson' 
-    (all in the same coordinate system), this class prepares two csv files. The positive csv specifies the (x,y)
-    coordinates, rotation angle (we constrain the angle within the first quadrant), length (x-axis vector length),
-    and width(y-axis vector length) IN THAT ORDER. The negative .csv only provides the center coordinates (x,y)
-    of each sample.
-    
-    rgb_path: path to the orthograph
-    volume_path: path to the volumetric data
-    annotation_path: a .geojson file that labels the four corners of the box clock-wise
-    outdir: where the .csv fies should be stored. This class can generate both positive and negative .csv files
-    min_seperation: the minimum diameter around a positive center that we DO NOT draw negative samples from
-    threshold: the minimum density count that the joined first and second tile above "fake ground" have to pass to count 
-               as an "useful" negative spot. We need to make sure the negative samples are draw from meaningful sites 
-               (exculding streets and such)
-    total_num_of_samples: the the number of positive samples + negative samples. (default config.NUM_SAMPLES)
-    """
+        """
+        This class primarily reads its parameters from the 'config.py' file. Please specify your parameters there.
+        Given a very high resolution orthograph, a pre-processed lidar density file and human labeled '.geojson'
+        (all in the same coordinate system), this class prepares two csv files. The positive csv specifies the (x,y)
+        coordinates, rotation angle (we constrain the angle within the first quadrant), length (x-axis vector length),
+        and width(y-axis vector length) IN THAT ORDER. The negative .csv only provides the center coordinates (x,y)
+        of each sample.
+
+        rgb_path: path to the orthograph
+        volume_path: path to the volumetric data
+        annotation_path: a .geojson file that labels the four corners of the box clock-wise
+        outdir: where the .csv fies should be stored. This class can generate both positive and negative .csv files
+        min_seperation: the minimum diameter around a positive center that we DO NOT draw negative samples from
+        threshold: the minimum density count that the joined first and second tile above "fake ground" have to pass to count
+                   as an "useful" negative spot. We need to make sure the negative samples are draw from meaningful sites
+                   (exculding streets and such)
+        total_num_of_samples: the the number of positive samples + negative samples. (default config.NUM_SAMPLES)
+        """
         self.rgb_path = rgb_path
         self.volume_path = volume_path
         self.annotation_path = annotation_path

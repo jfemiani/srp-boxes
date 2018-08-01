@@ -3,7 +3,7 @@ Build the network architecture
 
 
 
->>> arch = srp.model.arch.Architecture(
+>>> arch = Architecture(
 ...              rgb_shape=(3, 64, 64),
 ...              lidar_shape=(6, 64, 64),
 ...              fusion='early',
