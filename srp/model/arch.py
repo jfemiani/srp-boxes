@@ -17,9 +17,9 @@ Build the network architecture
 >>> arch.fusion
 'early'
 """
+# pylint:disable=too-few-public-methods
 
 import shutil
-# pylint:disable=too-few-public-methods
 import sys
 from copy import deepcopy
 
@@ -30,6 +30,8 @@ from torch import nn, optim
 from torch.nn import functional as F
 
 from torchvision.models import vgg
+
+from srp.data.orientedboundingbox import OrientedBoundingBox
 
 
 def clear_tqdm():
@@ -148,7 +150,8 @@ class EarlyFusion(nn.Module):
         _change_num_channels(proto[0], self.rgb_channel + self.lidar_channels)
 
         # The first 3 channels are RGB; those weights are okay to use as is
-        proto[0].weights[:self.rgb_channels] = proto[0].weights[:self.rgb_channels]
+        proto[0].weights[:self.rgb_channels] = proto[
+            0].weights[:self.rgb_channels]
 
     def forward(self, x):  # pylint:disable=arguments-differ
         """forward
@@ -220,7 +223,8 @@ class LateFusion(nn.Module):
         # NOTE: I am not sure that this is necessary -- without it we could make a
         #       fully convolutional net.
         rgb_features = F.adaptive_max_pool2d(rgb_features, output_size=(1, 1))
-        lidar_features = F.adaptive_max_pool2d(lidar_features, output_size=(1, 1))
+        lidar_features = F.adaptive_max_pool2d(
+            lidar_features, output_size=(1, 1))
 
         fused = self.fuse(rgb_features, lidar_features)
         return fused
@@ -230,7 +234,8 @@ class LateFusion(nn.Module):
         """
         Abstract method to fuse RGB and LiDAR features.
         """
-        raise NotImplementedError("Subclasses should implement a `fuse` operation")
+        raise NotImplementedError(
+            "Subclasses should implement a `fuse` operation")
 
 
 class LateFusionAdd(LateFusion):
@@ -262,7 +267,8 @@ class LateFusionCat(LateFusion):
                       e.g.`torchvision.models.vgg.vgg13_bn(True).features`
         """
         super().__init__(lidar_channels, rgb_channels, proto)
-        self.fusion_layer = nn.Linear(2 * num_features, num_features, bias=True)
+        self.fusion_layer = nn.Linear(
+            2 * num_features, num_features, bias=True)
 
     def fuse(self, rgb_features, lidar_features):
         """fuse rgb and lidar features by adding them (element by element)
@@ -284,7 +290,12 @@ class Architecture(nn.Module):
     Build the network architecture for box detections.
     """
 
-    def __init__(self, shape=(64, 64), lidar_channels=6, rgb_channels=3, num_features=512, **kwargs):
+    def __init__(self,
+                 shape=(64, 64),
+                 lidar_channels=6,
+                 rgb_channels=3,
+                 num_features=512,
+                 **kwargs):
         """
         The network architecture.
 
@@ -334,13 +345,18 @@ class Architecture(nn.Module):
         self.num_features = num_features
 
         self.fusion = kwargs.pop('fusion', FusionOptions.EARLY)
-        self.obb_parametrization = kwargs.pop('obb_parametrization', ObbOptions.VECTOR_AND_WIDTH)
-        self.channel_dropout = kwargs.pop('channel_dropout', ChannelDropoutOptions.CDROP)
-        self.channel_dropout_ratios = kwargs.pop('channel_dropout_ratios', (1, 1, 5))
+        self.obb_parametrization = kwargs.pop('obb_parametrization',
+                                              ObbOptions.VECTOR_AND_WIDTH)
+        self.channel_dropout = kwargs.pop('channel_dropout',
+                                          ChannelDropoutOptions.CDROP)
+        self.channel_dropout_ratios = kwargs.pop('channel_dropout_ratios',
+                                                 (1, 1, 5))
 
         self.synthetic = kwargs.pop('synthetic', SyntheticOptions.NO_PRETRAIN)
-        self.class_loss = kwargs.pop('class_loss', ClassLossOptions.XENT_LOSS)
-        self.regression_loss = kwargs.pop('regression_loss', RegressionLossOptions.SMOOTH_L1)
+        self.class_loss_function = kwargs.pop('class_loss',
+                                              ClassLossOptions.XENT_LOSS)
+        self.regression_loss_function = kwargs.pop(
+            'regression_loss', RegressionLossOptions.SMOOTH_L1)
 
         self.num_hidden = kwargs.pop('num_hidden', 2048)
 
@@ -348,11 +364,14 @@ class Architecture(nn.Module):
 
         # Choose a feature extraction subbnet based on the `fusion` argument.
         if self.fusion == FusionOptions.EARLY:
-            self.features = EarlyFusion(lidar_channels, rgb_channels, proto.features)
+            self.features = EarlyFusion(lidar_channels, rgb_channels,
+                                        proto.features)
         elif self.fusion == FusionOptions.LATE_ADD:
-            self.features = LateFusionAdd(lidar_channels, rgb_channels, proto.features)
+            self.features = LateFusionAdd(lidar_channels, rgb_channels,
+                                          proto.features)
         elif self.fusion == FusionOptions.LATE_CAT:
-            self.features = LateFusionCat(lidar_channels, rgb_channels, num_features, proto.features)
+            self.features = LateFusionCat(lidar_channels, rgb_channels,
+                                          num_features, proto.features)
 
         # Classify (determine if it is a box)
         num_classes = 2  # 0 = 'background' (not a box), 1 = 'object' (it is a box)
@@ -371,7 +390,8 @@ class Architecture(nn.Module):
         elif self.obb_parametrization == ObbOptions.FOUR_POINTS:
             self.num_obb_parameters = 4 * 2
         else:
-            raise ValueError("obb_parametrization must be on of the `ObbOptions` values")
+            raise ValueError(
+                "obb_parametrization must be on of the `ObbOptions` values")
 
         self.regressor = nn.Sequential(
             nn.Linear(self.num_features, self.num_hidden),
@@ -379,6 +399,22 @@ class Architecture(nn.Module):
             nn.Dropout(),
             nn.Linear(self.num_hidden, self.num_obb_parameters),
         )
+
+    def freeze_all(self):
+        # TODO: Freeze all layers
+        pass
+
+    def unfreeze_input_layers(self):
+        # TODO: Unfreeze the first conv layers
+        pass
+
+    def unfreeze_classification_layers(self):
+        # TODO: Unfrease the classification layers
+        pass
+
+    def unfreeze_regression_layers(self):
+        # TODO: Unfreee the egression layers
+        pass
 
     def forward(self, x):
         # pylint:disable=arguments-differ
@@ -389,7 +425,8 @@ class Architecture(nn.Module):
 
         """
         if self.channel_dropout == ChannelDropoutOptions.CDROP:
-            dropout = np.random.choice(['rgb', 'lidar', 'none'], p=self.channel_dropout_ratios)
+            dropout = np.random.choice(
+                ['rgb', 'lidar', 'none'], p=self.channel_dropout_ratios)
             if dropout == 'rgb':
                 self.x[:, :self.rgb_channels] = 0
             elif dropout == 'lidar':
@@ -418,7 +455,8 @@ class EvaluationData(object):
         self.val_loss = val_loss
         self.confusion_matrix = confusion_matrix
         self.true_neg, self.false_neg, self.false_pos, self.true_pos = confusion_matrix.flat
-        self.accuracy = (self.true_pos + self.true_neg) / (sum(confusion_matrix.flat))
+        self.accuracy = (self.true_pos + self.true_neg) / (sum(
+            confusion_matrix.flat))
         self.precision = self.true_pos / (self.true_pos + self.false_pos + eps)
         self.recall = self.true_pos / (self.true_pos + self.false_neg + eps)
         self.beta = 2
@@ -426,9 +464,12 @@ class EvaluationData(object):
             self.beta**2 * self.precision + self.recall + eps)
 
     def __repr__(self):
-        return (f"epoch {self.epoch: 5} " + f"trn_loss={self.trn_loss: 5.2} " + f"val_loss={self.val_loss: 5.2} " +
-                f"F_{self.beta}={self.f_measure: 5.1%}  " + f"accuracy={self.accuracy: 5.1%}  " +
-                f"precision={self.precision: 5.1%}  " + f"recall={self.recall: 5.1%}")
+        return (f"epoch {self.epoch: 5} " + f"trn_loss={self.trn_loss: 5.2} " +
+                f"val_loss={self.val_loss: 5.2} " +
+                f"F_{self.beta}={self.f_measure: 5.1%}  " +
+                f"accuracy={self.accuracy: 5.1%}  " +
+                f"precision={self.precision: 5.1%}  " +
+                f"recall={self.recall: 5.1%}")
 
 
 class Solver(object):
@@ -438,9 +479,21 @@ class Solver(object):
 
     Does the training loop in order to fit a model to data.
 
+    - This accepts a number of controlling the training process.
+    - The `iterate` method us used _both_ for trianing and evaluation; pass in `Solver.EVAL`
+      or `Solver.TRAIN` to decide which.
+
+    Class Attributes:
+
+    :attribute EVAL: Indicate that the net should be used in evaluation mode (see Solver.iterate)
+    :attribute TRAIN: Indicate that the net should be used in training modes (see Solver.iterate)
+
     """
 
     # pylint:disable=too-many-instance-attributes
+
+    EVAL = 'eval'
+    TRAIN = 'train'
 
     def __init__(self, trn_loader, val_loader, net, **kwargs):
         """__init__
@@ -460,6 +513,21 @@ class Solver(object):
         :param max_overfit:
             The maximim number of iterations to go past  our 'best' iteration
 
+        :param regression_weight:
+            The weight to apply to regression loss; the total loss is a weighted sum
+            of regression_loss and class_loss.
+
+        :param classification_weight:
+            The weight to apply to classification loss.
+
+        :param learning_rate:
+            The learning rate for the optimizer (default=1e-3)
+
+        :param weight_decay:
+            The amount of weight decay for the optimizer (default=1e-3)
+
+        :param reaug_interval:
+            The number of epochs to do before recomputing data augmentations (default=20)
         """
 
         super().__init__()
@@ -472,35 +540,71 @@ class Solver(object):
         self.epoch = 0
 
         self.optimizer = kwargs.pop('optimizer', 'adam')
-        self.class_loss = kwargs.pop('class_loss', ClassLossOptions.XENT_LOSS)
-        self.regression_loss = kwargs.pop('regression_loss', RegressionLossOptions.SMOOTH_L1)
+        self.class_loss_function = kwargs.pop('class_loss',
+                                              ClassLossOptions.XENT_LOSS)
+        self.regression_loss_function = kwargs.pop(
+            'regression_loss', RegressionLossOptions.SMOOTH_L1)
+
+        self.classification_weight = kwargs.pop('classification_weight', 1)
+        self.regression_weight = kwargs.pop('regression_weight', 1)
 
         self.max_epochs = kwargs.pop('max_epochs', 100)
         self.max_overfit = kwargs.pop('max_overfit', 5)
 
+        self.learning_rate = kwargs.pop('learning_rate', 1e-3)
+        self.weight_decay = kwargs.pop('weight_decay', 1e-3)
+
+        self.reaug_interval = kwargs.pop('reaug_interval', 20)
+
+        # Summary data from the training loop
+        self.validation_loss = float('nan')
+        self.training_loss = float('nan')
+        self.validation_confusion_matrix = np.zeros((2, 2))
+
         # Load the optimizer based on the option
         if self.optimizer == 'adam':
-            learnable_parameters = [p for p in self.net.parameters() if p.requires_grad]
-            self.optimizer = optim.Adam(learnable_parameters, lr=0.001, weight_decay=0.001)
+            learnable_parameters = [
+                p for p in self.net.parameters() if p.requires_grad
+            ]
+            self.optimizer = optim.Adam(
+                learnable_parameters, lr=0.001, weight_decay=0.001)
 
         # If a string was passed for class_loss, load the corresponding loss function.
-        if self.class_loss == ClassLossOptions.XENT_LOSS:
-            self.class_loss = nn.CrossEntropyLoss(weight=None)
-        elif self.class_loss == ClassLossOptions.HING_LOSS:
-            self.class_loss = nn.HingeEmbeddingLoss(margin=1.0)
+        if self.class_loss_function == ClassLossOptions.XENT_LOSS:
+            self.class_loss_function = nn.CrossEntropyLoss(weight=None)
+        elif self.class_loss_function == ClassLossOptions.HING_LOSS:
+            self.class_loss_function = nn.HingeEmbeddingLoss(margin=1.0)
 
         # If a string was passed for regression_loss, load the corresponding loss function.
-        if self.regression_loss == RegressionLossOptions.L2:
-            self.regression_loss = nn.MSELoss()
-        elif self.regression_loss == RegressionLossOptions.SMOOTH_L1:
-            self.regression_loss = nn.SmoothL1Loss()
+        if self.regression_loss_function == RegressionLossOptions.L2:
+            self.regression_loss_function = nn.MSELoss()
+        elif self.regression_loss_function == RegressionLossOptions.SMOOTH_L1:
+            self.regression_loss_function = nn.SmoothL1Loss()
 
-    def save_checkpoint(self, filename='checkpoint.pth.tar', best_filename='model_best.pth.tar'):
-        """Save the model.
+    def save_checkpoint(self,
+                        filename='checkpoint.pth.tar',
+                        best_filename='model_best.pth.tar'):
+        """Save the model, possibly updating the best model.
 
-        :param filename: The filename of the current checkpoint
-        :param best_filename: The filname of the best checkpoint
+        This saves the current model using the filename provided, and
+        if the current model is also the best model (in terms of validation loss)
+        then the model is also copied to (and overwites) the `best_filename` file.
+
+        You may use a python format string (e.g. `checkpoint-{epoch:05}.pth.tar`) if
+        you want to keep all models around; if you want to keep only the models which
+        are the best-up-to-that-epoch, then you may use the same formatting string
+        in the best_filename parameter.
+
+        NOTE: None of the arguments passed to the constructor are saved in the
+              checkpoint; the caller is responsible for saving those.
+
+        :param filename: The filename of the current checkpoint.
+        :param best_filename: The filename of the best checkpoint.
+
         """
+
+        filename = filename.format(epoch=self.epoch)
+        best_filename = best_filename.format(epoch=self.epoch)
 
         state = {
             'epoch': self.epoch,
@@ -510,12 +614,39 @@ class Solver(object):
             'best_val_loss': self.best_val_loss,
             'optimizer': self.optimizer.state_dict(),
         }
+
         is_best = self.epoch == self.best_epoch
+
         torch.save(state, filename)
         if is_best:
             shutil.copyfile(filename, best_filename)
 
     def restore_checkpoint(self, filename):
+        """
+        Restore the solver to a previously-saved state.
+
+        We should be able to resume training from the saved state.
+        The saved state includes the entire history so we can plot accuracy/etc. up
+        to the point where the model was saved.
+
+        :param filename: The name of a previously saved state.
+
+        Examples:
+
+        NOTE: These are not doctests because they rely on training histoty.
+
+        ```
+        s = Solver(trn_loader, val_loader, net)   # The saved state does not include these!
+        s.restore_checkpoint('model_best.pth.tar')  # The best model from a prior run
+
+        box = s.make_obb(s.net(some_data))  # Use the best net to get OBB parameters
+
+        if (box):
+            print("Found box:", box)
+        else:
+            print("Did not find a box.")
+        ```
+        """
         checkpoint = torch.load(filename)
         self.epoch = checkpoint['epoch']
         self.best_epoch = checkpoint['best_epoch']
@@ -524,18 +655,145 @@ class Solver(object):
         self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.history = checkpoint['history']
 
-    def train(self):
+    @staticmethod
+    def output_to_obb(output, obb_parametrization):
+        # pylint:disable=inconsistent-return-statements
+        """output_to_obb
 
-        # Compute initial validation
-        # TODO: Refactor to a method: self.eval_current()--> should return EvaluationData and add to history
-        val_loss = 0
+        :param output:
+        :param obb_parametrization:
+
+        >>> output = pytorch.Tensor([1, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        >>> print(Solver.output_to_obb(output, ObbOptions.FOUR_POINTS))
+        <BLANKLINE>
+
+        >>> output = pytorch.Tensor([1, 0, 0, 0, 0, 0, 0, 0])
+        >>> print(Solver.output_to_obb(None, ObbOptions.TWO_VECTORS)
+        <BLANKLINE>
+
+        >>> output = pytorch.Tensor([1, 0, 0, 0, 0, 0, 0])
+        >>> print(Solver.output_to_obb(None, ObbOptions.VECTOR_AND_WIDTH)
+        <BLANKLINE>
+
+        # Check that it generate a positive example correctly
+        >>> box = OrientedBoundingBox.from_rot_length_width((1,2), deg=30.0, length=2.0, width=1.0)
+
+        >>> output = pytorch.Tensor([0, 1, 1.616, 2.933, -0.116, 1.933, 0.384, 1.067, 2.116, 2.067])
+        >>> other = Solver.output_to_obb(output, ObbOptions.FOUR_POINTS)
+        >>> other.iou(box) > 0.99
+        True
+
+        >>> output = pytorch.Tensor([0.0, 1.0, 1.0, 2.0, 0.866, 0.5, -0.25, 0.433])
+        >>> other = obb_to_output(box, ObbOptions.TWO_VECTORS)
+        >>> other.iou(box) > 0.99
+        True
+
+        >>> output = pytorch.Tensor([0.0, 1.0, 1.0, 2.0, 0.866, 0.5, 1.0])
+        >>> other = obb_to_output(box, ObbOptions.VECTOR_AND_WIDTH)
+        >>> other.iou(box) > 0.99
+        True
+
+        """
+        if output[0] > output[1]:  # Negative
+            return None
+        output = output[2:]
+        if obb_parametrization == ObbOptions.FOUR_POINTS:
+            points = output.reshape(4, 2)
+            return OrientedBoundingBox.from_points(points)
+        elif obb_parametrization == ObbOptions.TWO_VECTORS:
+            center, u_vector, v_vector = output.reshape(3, 2)
+            points = np.array([ u_vector + v_vector,
+                               -u_vector + v_vector,
+                               -u_vector - v_vector,
+                                u_vector - v_vector]) + center
+
+            return OrientedBoundingBox.from_points(points)
+        elif obb_parametrization == ObbOptions.VECTOR_AND_WIDTH:
+            center = output[0:2]
+            vector = output[2:4]
+            width = output[4]
+            return OrientedBoundingBox(center, vector, width)
+
+    @staticmethod
+    def obb_to_output(obb, obb_parametrization):
+
+        """
+        Generate the expected net outputs for an obb.
+        If obb is None, then the net should predit no bounding box.
+
+
+        Example:
+
+        Passing `None` results in a negative sample (1 and all 0's)
+
+        >>> print(Solver.obb_to_output(None, ObbOptions.FOUR_POINTS))
+        [1, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+        >>> print(Solver.obb_to_output(None, ObbOptions.TWO_VECTORS)
+        [1, 0, 0, 0, 0, 0, 0, 0]
+
+        >>> print(Solver.obb_to_output(None, ObbOptions.VECTOR_AND_WIDTH)
+        [1, 0, 0, 0, 0, 0, 0]
+
+        # Check that it generate a positive example correctly
+        >>> box = OrientedBoundingBox.from_rot_length_width((1,2), deg=30.0, length=2.0, width=1.0)
+
+        >>> print(obb_to_output(box, ObbOptions.FOUR_POINTS))
+        [0, 1, 1.616..., 2.933..., -0.116..., 1.933..., 0.38..., 1.066..., 2.116..., 2.066...]
+
+        >>> print(obb_to_output(box, ObbOptions.TWO_VECTORS))
+        [0.0, 1.0, 1.0, 2.0, 0.866..., 0.5, -0.25, 0.433...]
+
+        >>> print(obb_to_output(box, ObbOptions.VECTOR_AND_WIDTH))
+        [0.0, 1.0, 1.0, 2.0, 0.866..., 0.5, 1.0]
+
+        """
+
+        if obb_parametrization == ObbOptions.FOUR_POINTS:
+            num_obb_params = 4 * 2
+        elif obb_parametrization == ObbOptions.TWO_VECTORS:
+            num_obb_params = 3 * 2
+        elif obb_parametrization == ObbOptions.VECTOR_AND_WIDTH:
+            num_obb_params = 5
+
+        if obb is None:
+            return torch.Tensor([1, 0] + [0] * num_obb_params)
+        elif obb_parametrization == ObbOptions.FOUR_POINTS:
+            return torch.Tensor([0, 1] + list(obb.points()))
+        elif obb_parametrization == ObbOptions.TWO_VECTORS:
+            return torch.Tensor([0, 1] + list(obb.origin) + list(obb.u_vector) + list(obb.v_vecor))
+        # obb_parametrization == ObbOptions.VECTOR_AND_WIDTH:
+        return torch.Tensor([0, 1] + list(obb.origin) + list(obb.u_vector) + obb.width)
+
+    def iterate(self, mode='eval'):
+        """Do a forward pass on the net and compute the loss and other stats; possibly updating weights.
+
+        This is used both to evaluate the model and also to update the weights; since the code
+        for each is nearly identical.
+
+        If `mode=Solver.TRAIN`, then the solver goes through one epoch and the weights are updated.
+        The `epoch` counter is increased by one.
+
+        If `mode=Solver.EVAL`  the solver goes through the validation dataset; the epoch counter is
+        not increased but out internal evaluation metrics are overwritten.
+
+        :param mode: Whether to evaluate the net using the validation set (Solver.EVAL, or 'eval')
+                     or to update the model using the training data (Solver.TRAIN, or 'train')
+
+        """
+        if mode == Solver.EVAL:
+            self.net.eval()
+        else:
+            self.net.train()
+
+        loss = 0.0
+        loss_count = 0
+        progressbar = tqdm(
+            self.val_loader, "computing validation", leave=False)
+
         confusion_matrix = np.zeros((2, 2))
-        self.net.eval()
-        val_progressbar = tqdm(self.val_loader, "computing validation", leave=False)
+        for x, y in progressbar:
 
-        # TODO: I am not sure how we are formatting 'y' now. I assume it is
-        #       is_box, **box_params
-        for x, y in val_progressbar:
             expected_is_box = y[0]
             expected_obb_parameters = y[1:]
 
@@ -545,97 +803,100 @@ class Solver(object):
 
             logits, obb_parameters = self.net.forward(x).squeeze()
             predicted_is_box = torch.argmax(logits, dim=1).squeeze()
-            confusion_matrix += np.bincount(2 * y + predicted_is_box, minlength=4).reshape(2, 2)
 
-            # The classification loss
-            class_loss = self.class_loss(logits, expected_is_box)
+            # Compute the loss
+            class_loss = self.class_loss_function(logits, expected_is_box)
 
+            # Only measure regression loss of there is a box
             if predicted_is_box:
-                regression_loss = self.regression_loss(obb_parameters, expected_obb_parameters)
+                regression_loss = self.regression_loss_function(
+                    obb_parameters, expected_obb_parameters)
             else:
                 regression_loss = 0
 
-            loss = class_loss + regression_loss
+            total_loss = (self.classification_weight * class_loss +
+                          self.classification_weight * regression_loss)
 
-            val_loss += loss.item()
-            val_progressbar.set_description("val_loss={val_loss:5.2}".format(val_loss=val_loss))
-        val_progressbar.close()
-        self.history.append(
-            EvaluationData(
-                epoch=self.epoch, trn_loss=float('nan'), val_loss=val_loss, confusion_matrix=confusion_matrix))
-        print(self.history[-1])
+            if mode == Solver.EVAL:
+                confusion_matrix += np.bincount(
+                    2 * y + predicted_is_box, minlength=4).reshape(2, 2)
+            else:  # mode == Solver.TRAIN
+                total_loss.backward()
+                self.optimizer.step()
+
+            loss += total_loss.item()
+            loss_count += 1
+            progressbar.set_description("{mode} loss={loss:5.2}".format(
+                mode=mode, loss=loss / loss_count))
+        progressbar.close()
+
+        if mode == Solver.EVAL:
+            self.validation_loss = loss / loss_count
+            self.validation_confusion_matrix = confusion_matrix
+        else:  # mode == Solver.TRAIN
+            self.training_loss = loss / loss_count
+            self.epoch += 1
+
+    def summarize(self):
+        """Return and record evaluation-data for the current epoch.
+
+        This creates a record of the current evaluation data (train and validation loss, confusion matrix, etc)
+        and records it in our internal history. It also returns the newly created record.
+
+        """
+        summary = EvaluationData(
+            epoch=self.epoch,
+            trn_loss=self.training_loss,
+            val_loss=self.validation_loss,
+            confusion_matrix=self.validation_confusion_matrix)
+        self.history.append(summary)
+        return summary
+
+    def train(self, num_epochs=None):
+        """The training loop.
+
+        This does multiple iterations of training and validation.
+        It starts be evaluating the current net and then alternate between
+        training the model and evaluating it.
+
+        This loop uses early stoping; if the model fails to improve on the
+        validation set after `self.max_overfit` epochs then the loop will stop early.
+        Otherwise, it will proceed for 'num_epochs' additional epochs.
+
+        Note that this does does _additional_ epochs; calling it multiple times
+        will increase the number of epochs recording (not restart it)
+
+        :param num_epochs: The number of additional epochs (default=self.max_epochs)
+        """
+
+        if num_epochs is None:
+            num_epochs = self.max_epochs
+
+        # Compute initial validation
+        self.iterate(Solver.EVAL)
+        print(self.summarize())
 
         # loop over the dataset multiple times
         # NOTE: This does _up to_ max_epochs _additional_ epochs.
-        for ignored in trange(self.max_epochs):
-            # Training for one epoch
-            self.net.train()
-            trn_loss = 0.0
-            trn_progressbar = tqdm(self.trn_loader, 'batches', leave=False)
-            for (x, y) in trn_progressbar:
-                # put input ionto the GPU
-                expected_is_box = y[0]
-                expected_obb_parameters = y[1:]
+        for dummy in trange(self.max_epochs):
+            if self.epoch % self.reaug_interval == 0:
+                # TODO: Accept the _dataset_ as a parameter
+                self.trn_dataset.pre_augment()
+                self.val_dataset.pre_augment()
 
-                x = x.cuda()
-                expected_is_box = expected_is_box.cuda()
-                expected_obb_parameters = expected_obb_parameters.cuda()
+            self.iterate(Solver.TRAIN)
+            self.iterate(Solver.EVAL)
+            print(self.summarize())
 
-                # zero the parameter gradients
-                self.optimizer.zero_grad()
-
-                # forward + backward + optimize
-                logits, obb_parameters = self.net(x)
-                predicted_is_box = torch.argmax(logits, dim=1).squeeze()
-
-                class_loss = self.class_loss(logits.squeeze(), expected_is_box)
-                if predicted_is_box:
-                    regression_loss = self.regression_loss(obb_parameters, expected_obb_parameters)
-                else:
-                    regression_loss = 0
-
-                # TODO: Assign weights to these
-                loss = class_loss + regression_loss
-
-                # NOTE: This is the only reall difference between eval and training, so there is a lot of repeated code.
-                loss.backward()
-                self.optimizer.step()
-
-                # print statistics
-                trn_loss += loss.item()
-                trn_progressbar.set_description("trn_loss={trn_loss:5.2}".format(trn_loss=trn_loss))
-            trn_progressbar.close()
-
-            # Compute validation
-            val_loss = 0
-            confusion_matrix = np.zeros((2, 2))
-            self.net.eval()
-            val_progressbar = tqdm(self.val_loader, "computing validation", leave=False)
-            for x, y in val_progressbar:
-                x, y = x.cuda(), y.cuda()
-                p = self.net.forward(x).squeeze()
-                c = torch.argmax(p, dim=1).squeeze()
-                confusion_matrix += np.bincount(2 * y + c, minlength=4).reshape(2, 2)
-                loss = self.class_loss(p, y)
-                val_loss += loss.item()
-                val_progressbar.set_description("val_loss={val_loss:5.2}".format(val_loss=val_loss))
-            val_progressbar.close()
-
-            self.epoch += 1
-            self.history.append(
-                EvaluationData(
-                    epoch=self.epoch, trn_loss=trn_loss, val_loss=val_loss, confusion_matrix=confusion_matrix))
-
-            print(self.history[-1])
-
-            if val_loss < self.best_val_loss:
+            if self.validation_loss < self.best_val_loss:
                 self.best_epoch = self.epoch
-                self.best_val_loss = val_loss
+                self.best_val_loss = self.validation_loss
 
             self.save_checkpoint()
 
             if (self.epoch - self.best_epoch) >= self.max_overfit:
-                print("No improvement in {} epochs, you are done!".format(self.epoch - self.best_epoch))
+                print("No improvement in {} epochs, you are done!".format(
+                    self.epoch - self.best_epoch))
                 break
 
         print('Finished Training')
