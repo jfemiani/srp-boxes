@@ -48,7 +48,7 @@ class RgbLidarDataset(Dataset):
         idx_dir = "s{0:05d}".format(idx)
         return top/label_dir/idx_dir/"{}_orig.pickle".format(idx_dir)
         
-    def pre_augment(self, cache_dir=None, num_variants=C.NUM_PRECOMPUTE_VARIATION, force_recompute=False):
+    def pre_augment(self, cache_dir=None, num_variants=C.NUM_PRECOMPUTE_VARIATION):
         """Precompute the data augmentation and cache it. 
         
         :param cach_dir: A mirror of the TRAINVAL folder that will hold variations on each input
@@ -78,20 +78,18 @@ class RgbLidarDataset(Dataset):
 
         source_patch = np.concatenate((p.rgb, p.volumetric))
         rotated_patch = np.zeros((source_patch.shape))
-
-        if np.rand() <= self.prop_synthetic:
-            
+        obb = p.obb
         
         for i in range(len(source_patch)):
             rotated_patch[i] = rotate(source_patch[i], rotate_angle, preserve_range=True)
 
 
-            cropped_patch = rotated_patch[:, 
-                                          p_center-radius+dc: p_center+radius+dc, 
-                                          p_center-radius-dr: p_center+radius-dr]      
-            rgb = cropped_patch[:3]
-            volumetric = cropped_patch[3:]
-            obb = p.obb
+        cropped_patch = rotated_patch[:, 
+                                      p_center-radius+dc: p_center+radius+dc, 
+                                      p_center-radius-dr: p_center+radius-dr]      
+        # rgb = cropped_patch[:3]
+        # volumetric = cropped_patch[3:]
+            
             
         if p.label:
             R = affine.Affine.rotation(rotate_angle)
