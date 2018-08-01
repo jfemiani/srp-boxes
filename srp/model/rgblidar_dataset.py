@@ -16,7 +16,7 @@ from skimage.transform import rotate
 
 Patch = namedtuple("Patch",["obb", "volumetric", "rgb", "label","dr_dc_angle", "ori_xy"])
 class RgbLidarDataset(Dataset):
-    def __init__(self, txt_dir):
+    def __init__(self, txt_dir, prop_synthetic=0):
         """
         This class is design to use in conjunction with the pytorch dataloader class
         txt_dir: a PosixPath object which specify the path of the .txt which stores train (or test) sample indices.
@@ -41,6 +41,7 @@ class RgbLidarDataset(Dataset):
         # self.pre_augmented = False
         self.cache_dir = Path(C.INT_DATA)/"srp/samples"
         self.num_variants = C.NUM_PRECOMPUTE_VARIATION
+        self.prop_synthetic = prop_synthetic
     
     def _get_orig_dir(self, top, isbox, idx):
         label_dir = "pos" if isbox else "neg"
@@ -78,6 +79,9 @@ class RgbLidarDataset(Dataset):
         source_patch = np.concatenate((p.rgb, p.volumetric))
         rotated_patch = np.zeros((source_patch.shape))
 
+        if np.rand() <= self.prop_synthetic:
+            
+        
         for i in range(len(source_patch)):
             rotated_patch[i] = rotate(source_patch[i], rotate_angle, preserve_range=True)
 

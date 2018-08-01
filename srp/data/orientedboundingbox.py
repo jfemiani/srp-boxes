@@ -93,9 +93,16 @@ class OrientedBoundingBox(object):
 
         return OrientedBoundingBox(ctr[0], ctr[1], ux, uy, vd)
     
+        
     def shape(self):
         return shapely.geometry.Polygon(self.points())
     
+    def iou(self, other):
+        s= self.shape()
+        o = other.shape()
+        result = s.intersection(o).area / o.union(s).area
+        return result
+        
     def plot(self, ax):
         if ax is None:
             ax = plt.gca()
