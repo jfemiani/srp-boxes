@@ -3,7 +3,10 @@ import affine
 import pandas as pd
 import srp.config as C
 import sys
+import skimage
 import numpy as np
+import scipy
+from srp.data.data_augment import DataAugment
 from srp.data.orientedboundingbox import OrientedBoundingBox
 from pathlib import Path
 from tqdm import tqdm
@@ -58,11 +61,55 @@ class RgbLidarDataset(Dataset):
         """
         label_dir = "pos" if isbox else "neg"
         idx_dir = "s{0:05d}".format(idx)
-        return top / label_dir / idx_dir / "{}_orig.pickle".format(idx_dir)
+        return top/label_dir/idx_dir/"{}_orig.pickle".format(idx_dir)
+    
+    
+    def _cropped_rotate_patch(self, source_patch, rothate_angle, p_center, dr, dc):
+        rotated_patch = np.zeros((source_patch.shape))
+        for i in range(len(source_patch)):
+            rotated_patch[i] = rotate(source_patch[i], rotate_angle, preserve_range=True)
 
+        cropped_patch = rotated_patch[:, 
+                                      p_center-radius+dc: p_center+radius+dc, 
+                                      p_center-radius-dr: p_center+radius-dr]      
+        return cropped_patch
+    
+    def _fake_positive_layer(self, obb, radius=C.PATCH_SIZE, edge_factor=1, sigma=12, fg_noise=0.1, bg_noise=0.1):
+        square = np.zeros((radius*2,radius*2))
+        cd = obb.ud
+        rd = obb.vd
+        square[int(64-rd):int(64+rd),int(64-cd):int(64+cd)] = 1
+
+        outline = scipy.ndimage.morphology.morphological_gradient(square, 3)
+        outline[int(64-rd):, int(64-cd):int(64+cd)] = 0
+        square = (1-edge_factor)*square + edge_factor*outline
+
+        gradient = np.zeros_like(square)
+        gradient[:64] = 1
+        gradient = skimage.filters.gaussian(gradient, sigma=sigma)
+        square *= gradient
+        square /= np.percentile(square.flat, 99.9)
+
+        background = square == 0
+        noisy = square
+        noisy += background*np.random.randn(128, 128)*bg_noise 
+        noisy += ~background*np.random.randn(128, 128)*fg_noise
+        noisy = noisy.clip(0,1)
+
+        return noisy
+    
+    def _fake_data(self, obb, radius=C.PATCH_SIZE):
+        data = np.zeros((6, radius*2, radius*2))
+        data[2] = self._fake_positive_layer(obb, edge_factor=1)
+        data[3] = self._fake_positive_layer(obb, edge_factor=0.7)
+        data[3] *= 0.3
+        data *= 40
+        return data
+    
+        
     def pre_augment(self, cache_dir=None, num_variants=C.NUM_PRECOMPUTE_VARIATION):
-        """Precompute the data augmentation and cache it.
-
+        """Precompute the data augmentation and cache it. 
+        
         :param cach_dir: A mirror of the TRAINVAL folder that will hold variations on each input
         :param num_variants: The number of variants of each image to produce
         """
@@ -89,24 +136,27 @@ class RgbLidarDataset(Dataset):
         dr = int(np.random.uniform(-1, 1) * C.MAX_OFFSET)
         dc = int(np.random.uniform(-1, 1) * C.MAX_OFFSET)
         rotate_angle = np.random.rand() * 360
-        p_center = int(p.volumetric.shape[1] / 2)
-
-        source_patch = np.concatenate((p.rgb, p.volumetric))
+        p_center = int(p.volumetric.shape[1]/2)
+        
+        vol = p.volumetric
+        
+        if p.label and np.random.random() <= self.prop_synthetic:
+            vol = self._fake_data(p.obb, C.PATCH_SIZE)
+        assert vol.shape[1:] == p.rgb.shape[1:]
+        
+        source_patch = np.concatenate((p.rgb, vol))
         rotated_patch = np.zeros((source_patch.shape))
-
-        if np.random.rand() <= self.prop_synthetic:
-            # TODO: Generate synthetic data
-            pass
-
+        obb = p.obb
+        
         for i in range(len(source_patch)):
             rotated_patch[i] = rotate(source_patch[i], rotate_angle, preserve_range=True)
 
-            cropped_patch = rotated_patch[:, p_center - radius + dc:p_center + radius + dc, p_center - radius -
-                                          dr:p_center + radius - dr]
-            rgb = cropped_patch[:3]
-            volumetric = cropped_patch[3:]
-            obb = p.obb
 
+        cropped_patch = rotated_patch[:, 
+                                      p_center-radius+dc: p_center+radius+dc, 
+                                      p_center-radius-dr: p_center+radius-dr]      
+            
+            
         if p.label:
             R = affine.Affine.rotation(rotate_angle)
             T = affine.Affine.translation(dr, dc)
@@ -115,14 +165,15 @@ class RgbLidarDataset(Dataset):
             after = np.vstack(A * p.obb.points().T).T
             obb = OrientedBoundingBox.from_points(after)
 
-        return Patch(
-            obb=obb,
-            ori_xy=p.ori_xy,
-            rgb=cropped_patch[:3],
-            label=p.label,
-            volumetric=cropped_patch[3:],
-            dr_dc_angle=(dr, dc, rotate_angle))
-
+        return Patch(obb=obb, 
+                     ori_xy=p.ori_xy, 
+                     rgb=cropped_patch[:3], 
+                     label=p.label, 
+                     volumetric=cropped_patch[3:], 
+                     dr_dc_angle=(dr, dc, rotate_angle))    
+        
+        
+    
     def _load_random_pickle(self, sample_path):
         """Load an augmented version of the sample `sample_path`
 
