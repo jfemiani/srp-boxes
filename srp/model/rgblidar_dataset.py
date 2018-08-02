@@ -4,7 +4,9 @@ import pandas as pd
 import srp.config as C
 import os
 import sys
+import skimage
 import numpy as np
+import scipy
 from srp.data.data_augment import DataAugment
 from srp.data.orientedboundingbox import OrientedBoundingBox
 from pathlib import Path
@@ -47,6 +49,50 @@ class RgbLidarDataset(Dataset):
         label_dir = "pos" if isbox else "neg"
         idx_dir = "s{0:05d}".format(idx)
         return top/label_dir/idx_dir/"{}_orig.pickle".format(idx_dir)
+    
+    
+    def _cropped_rotate_patch(self, source_patch, rothate_angle, p_center, dr, dc):
+        rotated_patch = np.zeros((source_patch.shape))
+        for i in range(len(source_patch)):
+            rotated_patch[i] = rotate(source_patch[i], rotate_angle, preserve_range=True)
+
+        cropped_patch = rotated_patch[:, 
+                                      p_center-radius+dc: p_center+radius+dc, 
+                                      p_center-radius-dr: p_center+radius-dr]      
+        return cropped_patch
+    
+    def _fake_positive_layer(self, obb, radius=C.PATCH_SIZE, edge_factor=1, sigma=12, fg_noise=0.1, bg_noise=0.1):
+        square = np.zeros((radius*2,radius*2))
+        cd = obb.ud
+        rd = obb.vd
+        square[int(64-rd):int(64+rd),int(64-cd):int(64+cd)] = 1
+
+        outline = scipy.ndimage.morphology.morphological_gradient(square, 3)
+        outline[int(64-rd):, int(64-cd):int(64+cd)] = 0
+        square = (1-edge_factor)*square + edge_factor*outline
+
+        gradient = np.zeros_like(square)
+        gradient[:64] = 1
+        gradient = skimage.filters.gaussian(gradient, sigma=sigma)
+        square *= gradient
+        square /= np.percentile(square.flat, 99.9)
+
+        background = square == 0
+        noisy = square
+        noisy += background*np.random.randn(128, 128)*bg_noise 
+        noisy += ~background*np.random.randn(128, 128)*fg_noise
+        noisy = noisy.clip(0,1)
+
+        return noisy
+    
+    def _fake_data(self, obb, radius=C.PATCH_SIZE):
+        data = np.zeros((6, radius*2, radius*2))
+        data[2] = self._fake_positive_layer(obb, edge_factor=1)
+        data[3] = self._fake_positive_layer(obb, edge_factor=0.7)
+        data[3] *= 0.3
+        data *= 40
+        return data
+    
         
     def pre_augment(self, cache_dir=None, num_variants=C.NUM_PRECOMPUTE_VARIATION):
         """Precompute the data augmentation and cache it. 
@@ -61,7 +107,6 @@ class RgbLidarDataset(Dataset):
             rec = self.df.iloc[i]
             orig_dir = self._get_orig_dir(cache_dir, rec.label, rec.idx).as_posix()
             with open(orig_dir, 'rb') as handle:
-            # with orig_dir.open() as handle:
                 p = pickle.load(handle)
                 for i in range(self.num_variants):
                     var = self._augment(p, radius=C.PATCH_SIZE/2)
@@ -75,8 +120,14 @@ class RgbLidarDataset(Dataset):
         dc = int(np.random.uniform(-1,1) * C.MAX_OFFSET)
         rotate_angle = np.random.rand() * 360
         p_center = int(p.volumetric.shape[1]/2)
-
-        source_patch = np.concatenate((p.rgb, p.volumetric))
+        
+        vol = p.volumetric
+        
+        if p.label and np.random.random() <= self.prop_synthetic:
+            vol = self._fake_data(p.obb, C.PATCH_SIZE)
+        assert vol.shape[1:] == p.rgb.shape[1:]
+        
+        source_patch = np.concatenate((p.rgb, vol))
         rotated_patch = np.zeros((source_patch.shape))
         obb = p.obb
         
@@ -87,8 +138,6 @@ class RgbLidarDataset(Dataset):
         cropped_patch = rotated_patch[:, 
                                       p_center-radius+dc: p_center+radius+dc, 
                                       p_center-radius-dr: p_center+radius-dr]      
-        # rgb = cropped_patch[:3]
-        # volumetric = cropped_patch[3:]
             
             
         if p.label:
