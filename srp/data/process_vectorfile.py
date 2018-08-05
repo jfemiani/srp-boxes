@@ -3,16 +3,19 @@
 Process a vector file to produce positive and negative samples.
 """
 
-from __future__ import division
-from __future__ import print_function
+from __future__ import division, print_function
+
+import os
+
 import fiona
-from srp.data.orientedboundingbox import OrientedBoundingBox
 import numpy as np
-import shapely.geometry as sg
 import pandas as pd
 import rasterio
+import shapely.geometry as sg
 from skimage.morphology import binary_dilation, disk
+
 from srp.config import C
+from srp.data.orientedboundingbox import OrientedBoundingBox
 from srp.util import tqdm
 
 
@@ -31,7 +34,7 @@ class SampleGenerator:
                  min_seperation=C.TRAIN.SAMPLES.GENERATOR.MIN_SEPARATION,
                  threshold=C.TRAIN.SAMPLES.GENERATOR.MIN_DENSITY,
                  total_num_of_samples=C.TRAIN.SAMPLES.GENERATOR.NUM_SAMPLES,
-                 patch_size=C.TRAIN.SAMPLES.GENERATOR.PATCH_SIZE):
+                 patch_size=C.TRAIN.PATCH_SIZE):
         """
         This class primarily reads its parameters from the 'config.py' file. Please specify your parameters there.
         Given a very high resolution ortho-image, a pre-processed LiDAR density file and human labeled '.geojson'
@@ -67,8 +70,8 @@ class SampleGenerator:
 
         suffix = C.VOLUME.CRS.replace(':', '')
         self.csv_dir = outdir
-        self.posdir = '{}/positives_{}.csv'.format(self.csv_dir, suffix)
-        self.negdir = '{}/negatives_{}.csv'.format(self.csv_dir, suffix)
+        self.positive_csv_file = '{}/positives_{}.csv'.format(self.csv_dir, suffix)
+        self.negative_csv_file = '{}/negatives_{}.csv'.format(self.csv_dir, suffix)
         self.num_of_samples = total_num_of_samples
         with fiona.open(self.annotation_path) as vector_file:
             self.hotspots = np.array([f['geometry']['coordinates'] for f in vector_file if f['geometry'] is not None])
@@ -104,9 +107,11 @@ class SampleGenerator:
 
         colnames = ['orig-x', 'orig-y', 'box-ori-deg', 'box-ori-length', 'box-ori-width']
         posdf = pd.DataFrame(data=pos_samples, columns=colnames)
-        posdf.to_csv(path_or_buf=self.posdir, index=False)
 
-        print("Positive data .csv file saved as {}".format(self.posdir))
+        os.makedirs(os.path.dirname(self.positive_csv_file), exist_ok=True)
+        posdf.to_csv(path_or_buf=self.positive_csv_file, index=False)
+
+        print("Positive data .csv file saved as {}".format(self.positive_csv_file))
 
     def _read_densities(self):
         densities = rasterio.open(self.volume_path)
@@ -123,10 +128,8 @@ class SampleGenerator:
         return stack, tfm
 
     def make_neg_csv(self):
-        import pdb
-        pdb.set_trace()
 
-        pos_xy = pd.read_csv(self.posdir).iloc[:, :2].values
+        pos_xy = pd.read_csv(self.positive_csv_file).iloc[:, :2].values
         num_of_negs = self.num_of_samples - len(pos_xy)
 
         assert num_of_negs > 0
@@ -134,6 +137,9 @@ class SampleGenerator:
         progress = tqdm(total=3)
 
         progress.description = 'Loading the volumetric densities'
+
+        import pdb
+        pdb.set_trace()
         stack, tfm = self._read_densities()
 
         progress.update()
@@ -160,15 +166,16 @@ class SampleGenerator:
         progress.set_description('Sampling negative locations')
         neg_xy = np.argwhere(mask)
         neg_indices = np.random.choice(len(neg_xy), num_of_negs)
+        neg_xy = neg_xy[neg_indices, ...]
         progress.update()
 
         progress.close()
 
         colnames = ['orig-x', 'orig-y']
         negdf = pd.DataFrame(data=neg_xy, columns=colnames)
-        negdf.to_csv(path_or_buf=self.negdir, index=False)
+        negdf.to_csv(path_or_buf=self.negative_csv_file, index=False)
 
-        print("Negative data .csv file saved as {}".format(self.negdir))
+        print("Negative data .csv file saved as {}".format(self.negative_csv_file))
 
 
 def generate_samples():

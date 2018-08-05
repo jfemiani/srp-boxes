@@ -2,8 +2,10 @@
 
 VISION_FILE_SERVER = http://handouts1.csi.miamioh.edu:82/vision/
 
+.PHONY: volume-data annotoations imagery
 
-data: $(RAW_DATA_FILE)  volume-data
+data:  volume-data annotations imagery 
+
 
 # Fetch the RAW data {{{
 

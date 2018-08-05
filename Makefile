@@ -1,5 +1,5 @@
 
-
+.PHONY:data docs requirements debug test
 
 debug: requirements
 	pytest --doctest-modules -x --pdb
@@ -7,10 +7,11 @@ debug: requirements
 requirements: requirements.txt
 	pip install --quiet -r requirements.txt
 
-test:
+test: requirements
 	pytest --doctest-modules 
 
-docs:
+docs: requirements
 	cd docs && make html
 
-
+data:
+	$(MAKE) -C data

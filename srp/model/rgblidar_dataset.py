@@ -102,7 +102,7 @@ class RgbLidarDataset(Dataset):
 
         return noisy
 
-    def _fake_data(self, obb, radius=C.TRAIN.SAMPLES.GENERATOR.PATCH_SIZE):
+    def _fake_data(self, obb, radius=C.TRAIN.PATCH_SIZE):
         data = np.zeros((6, radius * 2, radius * 2))
         data[2] = self._fake_positive_layer(obb, edge_factor=1)
         data[3] = self._fake_positive_layer(obb, edge_factor=0.7)

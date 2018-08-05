@@ -6,14 +6,14 @@
 DISABLE=false # Show progress bars for potentially slow operations.
 
 [COLOR]
-FILE = '${DATA}/interim/srp/sec11-26949.tif'
+FILE = '${DATA}/raw/srp/sec11-26949.tif'
 CRS = 'epsg:26949'
 
 [ANNOTATIONS]
 FILE = '${DATA}/raw/srp/box-annotations.geojson'
 
 [VOLUME]
-FILE = '${DATA}/interim/volume.tif'
+FILE = '${DATA}/interim/srp/stack_a4b2/lidar_volume.vrt'
 CRS = 'epsg:26949'
 
 [VOLUME.Z]

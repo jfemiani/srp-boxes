@@ -104,6 +104,10 @@ def save_settings(f=sys.stdout):
     toml.dump(C, f)
 
 
+def dump():
+    save_settings(f=sys.stdout)
+
+
 load_settings()
 
 if __name__ == '__main__':
