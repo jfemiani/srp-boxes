@@ -350,7 +350,9 @@ good-names=i, j, k,
            s, t, u, v,
            r, d,
            mu, sigma, var, std,
-           hi, lo
+           hi, lo,
+           cx, cy, ux, uy, vx, vy,
+           ax, fig
 
 # Include a hint for the correct naming format with invalid-name
 include-naming-hint=no

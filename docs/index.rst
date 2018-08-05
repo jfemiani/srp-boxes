@@ -7,11 +7,9 @@ Welcome to srp-boxes's documentation!
 =====================================
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+   :maxdepth: 3
 
-.. automodule:: srp.config
-   :members:
+   modules
 
 Indices and tables
 ==================

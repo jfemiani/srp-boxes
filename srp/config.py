@@ -2,120 +2,136 @@
 Configuration for the project.
 ------------------------------
 
-This module builds the _default_ configuration for the project.
+This module loads settings from a variety of config files that may exist on a system.
+The configuration settings are stored in a class-like-object called `C`.
 
-You can copy it to an experiment folder and modify it to match the experiment
+You can modify C and use `save_settings` to write-out the settings.
 
-Change this to match an experiment; this way you can keep track of which
-results go with which settings
+All config files are TOML  formatted files.
+
+At the time a config file is parsed, the ROOT and DATA environment variable will be set based on this project's location
+on the system.
+
+Any key named 'PATH', 'FILE', 'FILENAME', 'FOLDER' or 'DIR' will be interpreted as a filename and will have environment
+variables expanded.
+
+In addition C.ROOT, C.DATA, C.INT_DATA, and C.RAW_DATA are all folders.
+
+Example:
+
+    >>> os.path.isdir(C.DATA)
+    True
+
+    >>> print(type(C.VOLUME.CRS).__name__)
+    str
+
+    (It could be anything -- the point of the config module is that the values change on your system)
+
+
+The default config is kept with the sourcecode as 'srp-boxes.toml'
+
+.. literalinclude:: /../srp-boxes.toml
+
 """
 
 import os
+import sys
+
+import toml
+from easydict import EasyDict
+
 import srp
-from srp.units import FT, M
 
-# Paths {{{
+C = EasyDict()
+C.ROOT = os.path.dirname(os.path.dirname(os.path.abspath(srp.__file__)))
+C.DATA = os.path.join(C.ROOT, 'data')
+C.INT_DATA = os.path.join(C.ROOT, 'data', 'interim')
+C.RAW_DATA = os.path.join(C.ROOT, 'data', 'raw')
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(srp.__file__)))
-INT_DATA = os.path.join(ROOT, 'data', 'interim')
-RAW_DATA = os.path.join(ROOT, 'data', 'raw')
-POS_DATA = os.path.join(INT_DATA, 'srp/samples/pos')
-NEG_DATA = os.path.join(INT_DATA, 'srp/samples/neg')
+C.POS_DATA = os.path.join(C.INT_DATA, 'srp/samples/pos')
+C.NEG_DATA = os.path.join(C.INT_DATA, 'srp/samples/neg')
 
-# }}}
+os.environ.update(C)
 
-# Volume File Settings {{{
+_CONFIG_PATHS = [
+    f'{C.ROOT}/srp-boxes.toml',
+    '/etc/srp-boxes.toml',
+    '/etc/.srp-boxes.toml'
+    '~/srp-boxes.toml',
+    '~/.srp-boxes.toml',
+    'srp-boxes.toml',
+    '.srp-boxes.toml',
+    'config.toml',
+]
 
-#: The raster source for volume data
-VOLUME_FILE = '{INT_DATA}/volume.tif'
+PATH_KEYS = {'FILE', 'FILENAME', 'DIR', 'PATH', 'FOLDER', 'ROOT', 'DATA', 'INT_DIR', 'RAW_DIR'}
 
-#: The CRS to use if the data is missing in the file
-VOLUME_DEFAULT_CRS = 'epsg:26949'  # AZ
 
-#: The number of channels (slabs) of volumetric data.
-VOLUME_STEPS = 5
+def load_settings():
+    """Load settings from config files.
 
-#: The minimum height above ground(Z)
-VOLUME_Z_MIN = -1 * FT
-#: The maximum height above ground(Z)
-VOLUME_Z_MAX = 4 * FT
+    Settings are loaded (in order) from the files in _CONFIG_PATHS.
+    The latter config files take precedence over (they overwrite) the latter config files.
 
-# }}}
+    Config files are TOML formatted files.
 
-# Train / Val / Test split {{{
+    """
+    # pylint:disable=global-statement
+    global C
+    configs = _CONFIG_PATHS
+    settings = toml.load(list([c for c in configs if os.path.isfile(c)]), EasyDict)
+    for s in settings:
+        C[s] = settings[s]
 
-#: The path to the volumetric 6 channel data
-#  WRONG: VOLUMETRIC_PATH = os.path.join(ROOT, 'data/interim/srp', 'lidar_volume.vrt')
+    def expandvars(settings):
+        """Recursively replace environment variables for fields that are paths"""
+        for key in settings:
+            if isinstance(settings[key], dict):
+                expandvars(settings[key])
+            elif key in PATH_KEYS:
+                settings[key] = os.path.expanduser(settings[key])
+                settings[key] = os.path.expandvars(settings[key])
 
-#: The path to the rgb image
-COLOR_PATH = os.path.join(ROOT, 'data/srp/sec11-26949.tif')
+    expandvars(C)
 
-#: The path to the volumetric 6 channel data
-VOLUMETRIC_PATH = os.path.join(ROOT, 'data/interim/srp/stack_a4b2/lidar_volume.vrt')
 
-#: The path to the rgb image
-COLOR_PATH = os.path.join(ROOT, 'data/raw/srp/sec11-26949.tif')
+def save_settings(f=sys.stdout):
+    """save_settings
 
-#: The path to annotated box coordinates
-ANNOTATION_PATH = os.path.join(ROOT, 'data/raw/srp/box-annotations.geojson')
+    Args:
+      f (str): File to save settings to. Default is standard output.
+    """
+    toml.dump(C, f)
 
-#: The path to all sample coordinates (including positives and negs)
-# SAMPLE_PATH = os.path.join(ROOT, 'data/interim/srp/sample_locations_epsg26949.npz')
 
-#: The path to which the script outputs .csv file
-CSV_DIR = os.path.join(ROOT, 'srp/data')
-#: The number of folds (cross validation)
-# Volume File Settings {{{
+load_settings()
 
-#: The raster source for volume data
-VOLUME_FILE = '{INT_DATA}/volume.tif'
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod(verbose=True)
 
-#: The CRS to use if the data is missing in the file
-VOLUME_DEFAULT_CRS = 'epsg:26949'  # AZ
+# ###############################################
+# :arg **/*.py
+# :argdo %s/VOLUME_DEFAULT_CRS/C.VOLUME.CRS/gc
+# :argdo %s/VOLUME_STEPS/VOLUME.Z.STEPS/gc
+# :argdo %s/VOLUME_Z_MIN/VOLUME.Z.MIN/gc
+# :argdo %s/VOLUME_Z_MAX/VOLUME.Z.MAX/gc
+# :argdo %s/COLOR_PATH/COLOR.FILE/gc
+# :argdo %s/VOLUMETRIC_PATH/VOLUME.FILE/gc
+# :argdo %s/ANNOTATION_PATH/ANNOTATIONS.FILE/gc
+# :argdo %s/CSV_DIR/TRAIN.SAMPLES.DIR/gc
+# :argdo %s/FOLDS/TRAIN.SAMPLES.FOLDS/gc
+# :argdo %s/TRAINING_CURRENT_FOLD/TRAIN.SAMPLES.CURRENT_FOLD/gc
+# :argdo %s/FOLD_RANDOM_SEED/TRAIN.SRAND/gc
+# :argdo %s/MIN_DENSITY_COUNT/TRAIN.SAMPLES.GENERATOR.MIN_DENSITY/gc
+# :argdo %s/PATCH_SIZE/TRAIN.SAMPLES.GENERATOR.PATCH_SIZE/gc
+# :argdo %s/MAX_OFFSET/TRAIN.AUGMENTATION.TRAIN.AUGMENTATION.MAX_OFFSET/gc
+# :argdo %s/METERS_PER_PIXEL/TRAIN.SAMPLES.GENERATOR.GSD/gc
+# :argdo %s/NUM_SAMPLES/TRAIN.SAMPLES.GENERATOR.NUM_SAMPLES/gc
+# :argdo %s/STRATIFY/TRAIN.STRATIFY/gc
+# :argdo %s/SRATIFY_BALANCE/TRAIN.CLASS_BALANCE/gc
+# :argdo %s/MIN_SEPARATTION/TRAIN.SAMPLES.GENERATOR.MIN_SEPARATTION/gc
+# :argdo %s/HARD_SAMPLING/TRAIN.HARD_SAMPLING/gc
+# :argdo %s/NUM_PRECOMPUTE_VARIATION/TRAIN.AUGMENTATION.VARIATIONS/gc
 
-#: Total number of folds
-FOLDS = 5
-#: Which fold is current.
-TRAINING_CURRENT_FOLD = 1
-VOLUME_STEPS = 5
-#: The RNG for folds (for repeatability)
-FOLD_RANDOM_SEED = 127
-
-#: The minimum threshold density within the first two layers when picking negative samples
-MIN_DENSITY_COUNT = 15
-
-#: Patch size
-PATCH_SIZE = 64
-
-#: The maximum offset when jittering each sample
-MAX_OFFSET = 15
-
-#: A constant needed for scaling 
-METERS_PER_PIXEL=0.0499
-# }}}
-
-# Class balancing & Sampling {{{
-
-#: The total number of samples.
-#: Every positive (object) sample will be used, the remaining samples will
-#: be background samples
-NUM_SAMPLES = 2000
-
-#: Whether to draw samples so that each batch has a balanced number of labels.
-STRATIFY = False
-
-#: The class weights STRATIFY
-SRATIFY_BALANCE = 1, 1
-
-MIN_SEPARATTION = 2 * M
-
-#: Whether to use hard sampling.
-#:
-#: If this is set, then we weight each sample by its loss in the previous epoch
-#: and we draw samples according to the weights.
-HARD_SAMPLING = True
-
-#: The number of precomputed variations for each positive and negative sample
-NUM_PRECOMPUTE_VARIATION = 20
-
-# }}}
+# :argdo %s/ANNOTATION\.FILE/ANNOTATIONS.FILE/gc

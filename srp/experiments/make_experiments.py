@@ -8,7 +8,7 @@ import itertools
 import pandas as pd
 import oyaml as yaml
 from tqdm import tqdm
-import srp.config as C
+from srp.config import C
 
 
 def make_experiments(options, dirname=C.INT_DATA, progress=True):
@@ -57,7 +57,7 @@ def make_experiments(options, dirname=C.INT_DATA, progress=True):
 
     >>> print(f[1].strip())
     0,1,alpha,orange
-    
+
     >>> print(f[2].strip())
     1,2,alpha,orange
 
@@ -80,10 +80,7 @@ def make_experiments(options, dirname=C.INT_DATA, progress=True):
         yaml.dump(options, f, default_flow_style=False)
 
     # Save the master list of experiments
-    combos = [
-        reversed(combo)
-        for combo in itertools.product(*reversed(list(options.values())))
-    ]
+    combos = [reversed(combo) for combo in itertools.product(*reversed(list(options.values())))]
     experiments = pd.DataFrame(combos, columns=list(options.keys()))
     experiments.to_csv(os.path.join(dirname, 'experiments.csv'))
 

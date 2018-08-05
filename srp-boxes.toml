@@ -1,0 +1,46 @@
+
+# $ROOT -- Environment variable set to project root
+# $DATA -- Environment variable set to the data folder
+
+[DISPLAY.PROGRESS]
+DISABLE=false # Show progress bars for potentially slow operations.
+
+[COLOR]
+FILE = '${DATA}/interim/srp/sec11-26949.tif'
+CRS = 'epsg:26949'
+
+[ANNOTATIONS]
+FILE = '${DATA}/raw/srp/box-annotations.geojson'
+
+[VOLUME]
+FILE = '${DATA}/interim/volume.tif'
+CRS = 'epsg:26949'
+
+[VOLUME.Z]
+MIN = -0.3048
+MAX = 1.524
+STEPS = 6
+
+[TRAIN]
+SRAND = 127
+CLASS_BALANCE = [1, 1]
+HARD_SAMPLING = false
+PATCH_SIZE = 32 # Patch size  used for training
+
+[TRAIN.SAMPLES]
+DIR = '${DATA}/interim/samples'
+FOLDS = 5
+CURRENT_FOLD = 1
+
+[TRAIN.SAMPLES.GENERATOR]
+GSD = 0.0499  # Rescale inputs to that ground sample distance is ~ 2 inches
+NUM_SAMPLES = 2000
+MIN_SEPARATION = 2 # Two meters
+MIN_DENSITY = 15  # Threshold on the volume data for a patch to be generated
+
+[TRAIN.AUGMENTATION]
+VARIATIONS = 20
+MAX_OFFSET = 15  # Unused? Units? (better be pixels -- should be meters)
+
+
+

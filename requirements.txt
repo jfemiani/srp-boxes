@@ -15,7 +15,12 @@ scipy
 scikit-image
 scikit-learn
 fiona
-
-# torch   (must be manually installed)
-# torchvision
+toml
 tqdm
+
+# Required for generating documentation
+sphinxcontrib-napoleon
+
+# You will want to manually install these!
+torch  
+torchvision
