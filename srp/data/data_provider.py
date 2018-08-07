@@ -6,11 +6,12 @@ ahead of time and save the data and annotations as pkl files.
 import os
 import pickle
 import time
-from logging import debug
+from logging import debug, info
 
 import numpy as np
 import pandas as pd
 import rasterio
+from pylab import plt
 from skimage.transform import rotate
 
 from srp.config import C
@@ -39,6 +40,21 @@ class Patch:
         assert self.rgb is not None
         assert self.ori_xy is not None
 
+    def plot(self):
+        height, width = self.rgb.shape[1:]
+        extent = -height / 2, height / 2., -width / 2., width / 2.
+        plt.subplot(131)
+        plt.imshow(self.rgb.transpose(1, 2, 0), extent=extent)
+        plt.title('rgb')
+        plt.subplot(132)
+        plt.imshow(self.rgb.transpose(1, 2, 0), extent=extent)
+        plt.imshow(np.arctan(self.volumetric[1:4].transpose(1, 2, 0)), alpha=0.5, extent=extent)
+        self.obb.plot(ls='--', lw=4.)
+        plt.title('both')
+        plt.subplot(133)
+        plt.imshow(np.arctan(self.volumetric[1:4].transpose(1, 2, 0)), extent=extent)
+        plt.title('volume')
+
 
 class DataProvider(object):
     """DataProvider
@@ -66,11 +82,11 @@ class DataProvider(object):
             A file to hold the information on the locations of positive samples.
             Information include the location and orientation of the samples, data that is
             derived from the annotations.
-            (default C.TAIN.SAMPLES.DIR / 'positive.csv')
+            (default C.TAIN.SAMPLES.DIR / 'positives.csv')
 
         negative_csv_file:
             A file to hold the information on the locations of (valid) negative samples.
-            (default C.TRAIN.SAMPLES.DIR / 'neagtive.csv')
+            (default C.TRAIN.SAMPLES.DIR / 'neagtives.csv')
 
         positive_sample_info:
             The actual  data on positive samples
@@ -100,8 +116,8 @@ class DataProvider(object):
         self.color_file = kwargs.pop('color_file', C.COLOR.FILE)
         self.radius = kwargs.pop('radius', C.TRAIN.PATCH_SIZE / 2)
 
-        self.positive_csv_file = kwargs.pop('positive_csv_file', os.path.join(C.TRAIN.SAMPLES.DIR, 'positive.csv'))
-        self.negative_csv_file = kwargs.pop('negative_csv_file', os.path.join(C.TRAIN.SAMPLES.DIR, 'negative.csv'))
+        self.positive_csv_file = kwargs.pop('positive_csv_file', os.path.join(C.TRAIN.SAMPLES.DIR, 'positives.csv'))
+        self.negative_csv_file = kwargs.pop('negative_csv_file', os.path.join(C.TRAIN.SAMPLES.DIR, 'negatives.csv'))
 
         if os.path.isfile(self.positive_csv_file):
             debug(f'Reading positive sample data from {self.positive_csv_file}')
@@ -150,11 +166,11 @@ class DataProvider(object):
 
         radius = int(radius_in_pixels)
 
-        layers = self.densities.meta['count']
+        layers = self.densities.count
         size = 2 * radius
 
         # Determine the window in each dataset (resolutions may be different)
-        c, r = np.asarray(~self.densities.transform * (x, y)).astype(int)
+        c, r = np.asarray(self.densities.index(x, y))
         densities_window = ((r - radius, r + radius), (c - radius, c + radius))
         colors_window = self.colors.window(*self.densities.window_bounds(densities_window))
 
@@ -165,7 +181,7 @@ class DataProvider(object):
             (1, 2, 3), window=colors_window, boundless=True, out=np.zeros((3, size, size), dtype=np.uint8))
 
         # Convert sources to a common data type
-        densities = densities.astpe(np.float32)
+        densities = densities.astype(np.float32)
         colors = colors.astype(np.float32) / 255.
 
         return np.concatenate((colors, densities))
@@ -188,7 +204,7 @@ class DataProvider(object):
         return:
             a rotated cropped image
         """
-        radius = radius_in_pixels
+        radius = int(radius_in_pixels)
         enlarged_radius = radius * 2
 
         dx, dy = int(dx), int(dy)
@@ -198,7 +214,7 @@ class DataProvider(object):
         rotated_patch = source_patch.copy()
 
         for i, channel in enumerate(source_patch):
-            channel[...] = rotate(channel, angle, preserve_range=True)
+            rotated_patch[i] = rotate(channel, angle, preserve_range=True)
 
         # The center of the transformed patch is at location 2R -- we crop out a 2r by 2R patch
         # at the center.
@@ -225,9 +241,6 @@ class DataProvider(object):
         """Extract the positive examples..
 
         """
-        import pdb
-        pdb.set_trace()
-
         gsd = C.TRAIN.SAMPLES.GENERATOR.GSD
         progress = tqdm(self.positive_sample_info, desc='Generating positive patches')
         for i, row in enumerate(progress):
@@ -248,9 +261,6 @@ class DataProvider(object):
                 pickle.dump(patch, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     def extract_negative_patches(self):
-        import pdb
-        pdb.set_trace()
-
         progress = tqdm(self.negative_sample_info, desc='Generating negative patches')
         for i, row in enumerate(progress):
             center_x, center_y = row
@@ -271,12 +281,13 @@ class DataProvider(object):
                 pickle.dump(patch, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
+def extract_all_patches():
+    provider = DataProvider()
+    debug("This is a debug message")
+    info("This is an info message")
+
+    provider.extract_all_patches()
+
+
 if __name__ == '__main__':
-
-    def main(self):
-        import pdb
-        pdb.set_trace()
-        provider = DataProvider()
-        provider.extract_all_patches()
-
-    main()
+    extract_all_patches()

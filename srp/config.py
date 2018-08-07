@@ -34,6 +34,7 @@ The default config is kept with the sourcecode as 'srp-boxes.toml'
 
 """
 
+import logging.config
 import os
 import sys
 
@@ -94,6 +95,8 @@ def load_settings():
 
     expandvars(C)
 
+    logging.config.dictConfig(C.LOGGING)
+
 
 def save_settings(f=sys.stdout):
     """save_settings
@@ -102,10 +105,6 @@ def save_settings(f=sys.stdout):
       f (str): File to save settings to. Default is standard output.
     """
     toml.dump(C, f)
-
-
-def dump():
-    save_settings(f=sys.stdout)
 
 
 load_settings()

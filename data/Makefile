@@ -21,15 +21,19 @@ interim/srp/stack_a4b2.vrt.zip:
 	wget -O $@ $(VISION_FILE_SERVER)srp/stack_a4b2.vrt.zip
 
 interim/srp/stack_a4b2/lidar_volume.vrt: interim/srp/stack_a4b2.vrt.zip
-	unzip -n -d interim/srp interim/srp/stack_a4b2.vrt.zip
+	unzip -o -d interim/srp interim/srp/stack_a4b2.vrt.zip
 
 raw/srp/box-annotations.geojson:
 	mkdir -p raw/srp
 	wget -O $@ $(VISION_FILE_SERVER)srp/box-annotations.geojson
+	wget -O $@.md5 $(VISION_FILE_SERVER)srp/box-annotations.geojson.md5
+	md5sum -c $@.md5
 
 raw/srp/sec11-26949.tif:
 	mkdir -p raw/srp
 	wget -O $@ $(VISION_FILE_SERVER)srp/sec11-26949.tif
+	wget -O $@.md5 $(VISION_FILE_SERVER)srp/sec11-26949.tif.md5
+	md5sum -c $@.md5
 
 # Targets that generate the VRT {{{
 
