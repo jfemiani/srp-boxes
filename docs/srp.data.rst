@@ -6,9 +6,9 @@ Submodules
 
 .. toctree::
 
-   srp.data.data_provider
+   srp.data.generate_csv
+   srp.data.generate_patches
    srp.data.orientedboundingbox
-   srp.data.process_vectorfile
    srp.data.train_val_split
 
 Module contents

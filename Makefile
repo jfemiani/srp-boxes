@@ -14,4 +14,4 @@ docs: requirements
 	cd docs && make html
 
 data:
-	$(MAKE) -C data
+	$(MAKE) -C data data

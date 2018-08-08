@@ -55,7 +55,7 @@ STEPS = 6
 SRAND = 127
 CLASS_BALANCE = [1, 1]
 HARD_SAMPLING = false
-PATCH_SIZE =64 # Patch size  used for training
+PATCH_SIZE = 64 # Patch size  used for training
 
 [TRAIN.SAMPLES]
 DIR = '${DATA}/interim/samples'
@@ -65,11 +65,12 @@ CURRENT_FOLD = 1
 [TRAIN.SAMPLES.GENERATOR]
 GSD = 0.0499  # Rescale inputs to that ground sample distance is ~ 2 inches
 NUM_SAMPLES = 2000
+PADDED_PATCH_SIZE = 96 # Size of a patch to generate _before_ cropping. 
+NAME_PATTERN = '{label}/s{index:05}.pkl'  # the pattern to generate sample paths; label and index are the samples label and index....
 MIN_SEPARATION = 2 # Two meters
 DENSITY_LAYERS = [3,4]  # Which layers of the volume to threshold by MIN_DENSITY
-MIN_DENSITY = 15  # Threshold on the volume data for a patch to be generated
+MIN_DENSITY = 15  # Threshold on the volume-density; samples are only generated where density is greater than threshold.
 BLOCK_SIZE = 4096 # Size of a block to page from huge files; should be as big as you can fit in RAM on your system
-
 
 [TRAIN.AUGMENTATION]
 VARIATIONS = 20

@@ -6,7 +6,7 @@ ahead of time and save the data and annotations as pkl files.
 import os
 import pickle
 import time
-from logging import debug, info
+from logging import debug
 
 import numpy as np
 import pandas as pd
@@ -29,6 +29,7 @@ class Patch:
     """
 
     def __init__(self, **kwargs):
+        self.name = kwargs.pop('name', '')
         self.obb = kwargs.pop('obb', None)
         self.volumetric = kwargs.pop('volumetric', None)
         self.rgb = kwargs.pop('rgb', None)
@@ -39,6 +40,9 @@ class Patch:
         assert self.volumetric is not None
         assert self.rgb is not None
         assert self.ori_xy is not None
+
+    def __repr__(self):
+        return '{}(name={}, angle={})'.format(self.__class__.__name__, self.name, self.obb.angle)
 
     def plot(self):
         height, width = self.rgb.shape[1:]
@@ -76,7 +80,8 @@ class DataProvider(object):
             The color dataset (an open rasterio data source)
 
         radius:
-            The patch radius (half the size of the input fed into the net). (default C.TRAIN.PATCH_SIZE)
+            The padded patch radius (half the size of the input fed into the net).
+            The default value is C.TRAIN.SAMPLES.GENERATOR.PADDED_PATCH_SIZE/2.
 
         positive_csv_file:
             A file to hold the information on the locations of positive samples.
@@ -86,7 +91,7 @@ class DataProvider(object):
 
         negative_csv_file:
             A file to hold the information on the locations of (valid) negative samples.
-            (default C.TRAIN.SAMPLES.DIR / 'neagtives.csv')
+            (default C.TRAIN.SAMPLES.DIR / 'negatives.csv')
 
         positive_sample_info:
             The actual  data on positive samples
@@ -114,7 +119,11 @@ class DataProvider(object):
 
         self.density_file = kwargs.pop('density_file', C.VOLUME.FILE)
         self.color_file = kwargs.pop('color_file', C.COLOR.FILE)
-        self.radius = kwargs.pop('radius', C.TRAIN.PATCH_SIZE / 2)
+        self.radius = kwargs.pop('radius', C.TRAIN.SAMPLES.GENERATOR.PADDED_PATCH_SIZE / 2)
+
+        debug('Reading volumetric densities from "{}"'.format(self.density_file))
+        debug('Reading color densities from "{}"'.format(self.color_file))
+        debug('Generating padded patches with radius {}'.format(self.radius))
 
         self.positive_csv_file = kwargs.pop('positive_csv_file', os.path.join(C.TRAIN.SAMPLES.DIR, 'positives.csv'))
         self.negative_csv_file = kwargs.pop('negative_csv_file', os.path.join(C.TRAIN.SAMPLES.DIR, 'negatives.csv'))
@@ -135,17 +144,11 @@ class DataProvider(object):
             debug(f'Not reading negative sample data from {self.negative_csv_file} because it does not exist (yet).')
             self.negative_sample_info = None
 
-        debug('Opening the volumetric density file')
-        start = time.process_time()
         self.densities = rasterio.open(self.density_file)
-        end = time.process_time()
-        debug(f'Opened the density dataset in {end-start} seconds')
+        debug(f'Opened the density dataset')
 
-        debug('Opening the color file')
-        start = time.process_time()
         self.colors = rasterio.open(self.color_file)
-        end = time.process_time()
-        debug(f'Opened the color dataset in {end-start} seconds')
+        debug(f'Opened the color dataset')
 
     def get_patch_xy(self, x, y, radius_in_pixels=None):
         """Get a patch from the input sources at the specified geographic x,y location.
@@ -170,7 +173,7 @@ class DataProvider(object):
         size = 2 * radius
 
         # Determine the window in each dataset (resolutions may be different)
-        c, r = np.asarray(self.densities.index(x, y))
+        r, c = np.asarray(self.densities.index(x, y))
         densities_window = ((r - radius, r + radius), (c - radius, c + radius))
         colors_window = self.colors.window(*self.densities.window_bounds(densities_window))
 
@@ -222,7 +225,7 @@ class DataProvider(object):
 
         return cropped_patch
 
-    def extract_all_patches(self):
+    def generate_patches(self):
         """Extract all patches for training and store them as files.
 
         """
@@ -244,32 +247,36 @@ class DataProvider(object):
         gsd = C.TRAIN.SAMPLES.GENERATOR.GSD
         progress = tqdm(self.positive_sample_info, desc='Generating positive patches')
         for i, row in enumerate(progress):
-            center_x, center_y, original_angle, length, width = row
+            name, center_x, center_y, original_angle, length, width = row
 
-            directory = os.path.join(C.TRAIN.SAMPLES.DIR, 'pos', "s{0:05d}/".format(i))
-
-            suffix = "s{0:05d}_orig.pickle".format(i)
-            os.makedirs(directory, exist_ok=True)
+            path = os.path.join(C.TRAIN.SAMPLES.DIR, name)
+            dirname = os.path.dirname(path)
+            os.makedirs(dirname, exist_ok=True)
 
             data = self.get_patch_xyr(center_x, center_y, 0, 0, -original_angle, radius_in_pixels=self.radius)
             obb = OrientedBoundingBox.from_rot_length_width((0, 0), 0, length / gsd, width / gsd)
 
             patch = Patch(
-                obb=obb, volumetric=data[3:], rgb=data[:3], label=1, dr_dc_angle=(0, 0, 0), ori_xy=(center_x, center_y))
+                name=name,
+                obb=obb,
+                volumetric=data[3:],
+                rgb=data[:3],
+                label=1,
+                dr_dc_angle=(0, 0, 0),
+                ori_xy=(center_x, center_y))
 
-            with open(os.path.join(directory, suffix), 'wb') as handle:
+            with open(path, 'wb') as handle:
                 pickle.dump(patch, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     def extract_negative_patches(self):
         progress = tqdm(self.negative_sample_info, desc='Generating negative patches')
         for i, row in enumerate(progress):
-            center_x, center_y = row
-            directory = os.path.join(C.TRAIN.SAMPLES.DIR, 'neg', "s{0:05d}/".format(i))
-            os.makedirs(directory, exist_ok=True)
-            suffix = "s{0:05d}_orig.pickle".format(i)
-
-            data = self.get_patch_xy(row[0], row[1], radius_in_pixels=self.radius)
+            name, center_x, center_y = row
+            path = os.path.join(C.TRAIN.SAMPLES.DIR, name)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            data = self.get_patch_xy(center_x, center_y, radius_in_pixels=self.radius)
             patch = Patch(
+                name=name,
                 obb=None,
                 volumetric=data[3:],
                 rgb=data[:3],
@@ -277,17 +284,14 @@ class DataProvider(object):
                 ori_xy=(center_x, center_y),
                 dr_dc_angle=(0, 0, 0))
 
-            with open(os.path.join(directory, suffix), 'wb') as handle:
+            with open(path, 'wb') as handle:
                 pickle.dump(patch, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
-def extract_all_patches():
+def generate_patches():
     provider = DataProvider()
-    debug("This is a debug message")
-    info("This is an info message")
-
-    provider.extract_all_patches()
+    provider.generate_patches()
 
 
 if __name__ == '__main__':
-    extract_all_patches()
+    generate_patches()

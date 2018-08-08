@@ -9,15 +9,20 @@ import scipy
 from srp.data.data_provider import DataProvider
 from srp.data.orientedboundingbox import OrientedBoundingBox
 from pathlib import Path
-from tqdm import tqdm
+from srp.util import tqdm
 from collections import namedtuple
 from torch.utils.data import Dataset
 from skimage.transform import rotate
 
-Patch = namedtuple("Patch", ["obb", "volumetric", "rgb", "label", "dr_dc_angle", "ori_xy"])
+from srp.data.generate_patches import Patch
 
 
 class RgbLidarDataset(Dataset):
+    """An Rgb+Lidar Combined Dataset
+    
+    This dataset reads in patches that were saved as pickle files. 
+    
+    """
     def __init__(self, txt_dir, prop_synthetic=0):
         """
         This class is design to use in conjunction with the pytorch dataloader class
@@ -118,7 +123,7 @@ class RgbLidarDataset(Dataset):
         """
         cache_dir = cache_dir or self.cache_dir
 
-        for i in tqdm(range(len(self.dataframe)), desc='augmenting', file=sys.stdout, leave=False):
+        for i in tqdm(range(len(self.dataframe)), desc='augmenting'):
             rec = self.dataframe.iloc[i]
             orig_dir = self._get_orig_path(cache_dir, rec.label, rec.idx).as_posix()
             with open(orig_dir, 'rb') as handle:
@@ -205,3 +210,13 @@ class RgbLidarDataset(Dataset):
 
     def __len__(self):
         return len(self.dataframe)
+
+
+
+def generate_variations():
+    """Generate variations of the original patches. 
+
+    This is used to pre-compute data augmentation for deep learning.
+    
+    The number and types of variation are controlled by the configuration file. 
+    """

@@ -35,7 +35,7 @@ def tqdm(*args, **kwargs):
 
     All other keyword arguments are forwarded to tqdm.
     """
-    kwargs_ = dict(file=sys.stdout, disable=C.DISPLAY.PROGRESS.DISABLE)
+    kwargs_ = dict(file=sys.stdout, disable=C.DISPLAY.PROGRESS.DISABLE, leave=False)
     kwargs_.update(kwargs)
     clear_tqdm()
     return tq.tqdm(*args, **kwargs_)
@@ -47,7 +47,7 @@ def trange(*args, **kwargs):
     :param *args:
     :param **kwargs:
     """
-    kwargs_ = dict(file=sys.stdout, disable=C.DISPLAY.PROGRESS.DISABLE)
+    kwargs_ = dict(file=sys.stdout, disable=C.DISPLAY.PROGRESS.DISABLEi, leave=False)
     kwargs_.update(kwargs)
     clear_tqdm()
     return tq.trange(*args, **kwargs_)

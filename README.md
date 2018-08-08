@@ -1,7 +1,6 @@
 # 3D Boxes From Imagery and Point Clouds
 #
-This project aims to find 3D boxes in imagery and pointcloud data. 
-
+This project aims to find 3D boxes in imagery and point-cloud data. 
 
 Given
  * High resolution imagery with 3D camera parameters 
@@ -26,6 +25,7 @@ The work is part of a [Thesis]() and we plan to make it part of a paper; if you 
   publisher={}
 }
 ```
+
 
 # Try It With Docker
 
@@ -61,20 +61,22 @@ in the terminal in order to see the code in action.
 ## Using PIP:
 
 
-    pip install git+https://github.com/liux13/srp
+    pip install git+https://github.com/jfemiani/srp-boxes
 
 
 ## From source
- 
+    git clone https://github.com/jfemiani/srp-boxes
+    cd srp-boxes 
     python setup.py install
-
 
 ## For development or building models
 
 For development, building models, and doing experiments we use GNU make
     
+    git clone https://github.com/jfemiani/srp-boxes
     make all
-  
+    make data
+
 
 # Documentation
 
@@ -82,20 +84,17 @@ Our [jupyter notebooks](nb/) can be used as a tutorial of sorts.
 
 API Documentation is not currently hosted. To build documentation use
     
-    make doc
+    cd docs 
+    make html
+    browse _build/html/index.html
 
 # Data
 
 We build our models on data provided by the Salt River Project (SRP); we will seek permission to make it public.
 In the meantime, if you want access to the data you will have to send me an email and I will forward it along. 
 
-* LiDAR data: Please request this by email 
-* RGB 4" Aerial Ortho-Imagery: Please request this by email.
-* Manually annotated boxes: link TBD
-
-The data is provided as three archives; place them directly under the repo's `data` folder and run 
-
+To prepare the data for training: 
     make data
 
-To prepare the data for training. 
+
 

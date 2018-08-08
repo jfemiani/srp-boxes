@@ -19,7 +19,7 @@ import shapely.geometry
 from srp.config import C
 from srp.data.orientedboundingbox import OrientedBoundingBox
 from srp.util import tqdm
-from logging import debug, info
+from logging import info
 
 
 class SampleGenerator:
@@ -70,6 +70,8 @@ class SampleGenerator:
         self.csv_dir = kwargs.pop('outdir', C.TRAIN.SAMPLES.DIR)
         self.density_layers = kwargs.pop('density_layers', C.TRAIN.SAMPLES.GENERATOR.DENSITY_LAYERS)
 
+        self.sample_name_pattern = kwargs.pop('sample_pattern', C.TRAIN.SAMPLES.GENERATOR.NAME_PATTERN)
+
         self.positive_csv_file = os.path.join(self.csv_dir, 'positives.csv')
         self.negative_csv_file = os.path.join(self.csv_dir, 'negatives.csv')
 
@@ -92,9 +94,9 @@ class SampleGenerator:
         Example:
             >>> sc = SampleGenerator()
             >>> sc._get_tight_rectangle_info(box=np.array([[0,0],
-            ...                                         [0,1],
-            ...                                         [2,1],
-            ...                                         [2,0]])) # doctest: +NORMALIZE_WHITESPACE
+            ...                                            [0,1],
+            ...                                            [2,1],
+            ...                                            [2,0]])) # doctest: +NORMALIZE_WHITESPACE
             array([1. ,  0.5,  0. ,  2. ,  1. ])
         """
         poly = shapely.geometry.Polygon(box)
@@ -106,14 +108,18 @@ class SampleGenerator:
         This file generates a ".csv" file for the positive samples. It specifies the center(x,y) coordinates,
         rotated angle, length, width IN THAT ORDER. It currently supports squares and rectangular inputs.
         """
-        progress = tqdm(self.hotspots, desc='Generating positive samples')
-        pos_samples = np.array([self._get_tight_rectangle_info(b) for b in progress])
+        with tqdm(self.hotspots, desc='Generating positive samples') as progress:
+            pos_samples = []
+            for i, b in enumerate(progress):
+                x, y, deg, length, width = self._get_tight_rectangle_info(b)
+                rel_path = self.sample_name_pattern.format(label='pos', index=i + 1)
+                pos_samples.append([rel_path, x, y, deg, length, width])
 
-        colnames = ['orig-x', 'orig-y', 'box-ori-deg', 'box-ori-length', 'box-ori-width']
-        posdf = pd.DataFrame(data=pos_samples, columns=colnames)
+            colnames = ['name', 'orig-x', 'orig-y', 'box-ori-deg', 'box-ori-length', 'box-ori-width']
+            posdf = pd.DataFrame(data=pos_samples, columns=colnames)
 
-        os.makedirs(os.path.dirname(self.positive_csv_file), exist_ok=True)
-        posdf.to_csv(path_or_buf=self.positive_csv_file, index=False)
+            os.makedirs(os.path.dirname(self.positive_csv_file), exist_ok=True)
+            posdf.to_csv(path_or_buf=self.positive_csv_file, index=False)
 
         info("Positive data .csv file saved as {}".format(self.positive_csv_file))
 
@@ -125,7 +131,7 @@ class SampleGenerator:
         we expect to see boxes.
         """
 
-        pos_xy = pd.read_csv(self.positive_csv_file).iloc[:, :2].values
+        pos_xy = pd.read_csv(self.positive_csv_file).iloc[:, 1:1 + 2].values
         num_of_negs = self.num_of_samples - len(pos_xy)
 
         assert num_of_negs > 0
@@ -151,30 +157,34 @@ class SampleGenerator:
 
         neg_xy = []
 
-        progress = tqdm(block_windows, desc="Processing volume data blocks")
-        for window in progress:
-            try:
-                overlapping_window = combined_window.intersection(window)
-                stack = densities.read([3, 4], window=overlapping_window, boundless=True)
-                tfm = densities.window_transform(overlapping_window)
-            except rasterio.errors.WindowError as e:
-                # Non overlapping window: windows do not intersect"
-                continue
+        with tqdm(block_windows, desc="Processing volume data blocks") as progress:
+            for window in progress:
+                try:
+                    overlapping_window = combined_window.intersection(window)
+                    stack = densities.read([3, 4], window=overlapping_window, boundless=True)
+                    tfm = densities.window_transform(overlapping_window)
+                except rasterio.errors.WindowError as e:
+                    # Non overlapping window: windows do not intersect"
+                    continue
 
-            density_mask = stack.sum(0) > self.threshold
-            positive_mask = rasterio.features.geometry_mask(positive_region, stack.shape[1:], tfm)
-            sample_mask = density_mask & positive_mask
-            ij = np.argwhere(sample_mask)
-            if len(ij):
-                xy = np.c_[tfm * ij.T]
-                neg_xy.append(xy)
-        neg_xy = np.concatenate(neg_xy)
+                density_mask = stack.sum(0) > self.threshold
+                positive_mask = rasterio.features.geometry_mask(positive_region, stack.shape[1:], tfm)
+                sample_mask = density_mask & positive_mask
+                ij = np.argwhere(sample_mask.T)
+                if len(ij):
+                    xy = np.c_[tfm * ij.T]
+                    neg_xy.append(xy)
+            neg_xy = np.concatenate(neg_xy)
 
         # Choose which samples to keep
-        neg_xy = neg_xy[np.random.choice(len(neg_xy), num_of_negs)]
+        indices = np.random.choice(len(neg_xy), num_of_negs)
+        neg_xy = neg_xy[indices]
 
-        colnames = ['orig-x', 'orig-y']
-        negdf = pd.DataFrame(data=neg_xy, columns=colnames)
+        samples = [[self.sample_name_pattern.format(label='neg', index=i), x, y]
+                   for i, (x, y) in enumerate(tqdm(neg_xy))]
+
+        colnames = ['name', 'orig-x', 'orig-y']
+        negdf = pd.DataFrame(data=samples, columns=colnames)
         negdf.to_csv(path_or_buf=self.negative_csv_file, index=False)
 
         info("Negative data .csv file saved as {}".format(self.negative_csv_file))
