@@ -55,10 +55,10 @@ STEPS = 6
 SRAND = 127
 CLASS_BALANCE = [1, 1]
 HARD_SAMPLING = false
-PATCH_SIZE = 64 # Patch size  used for training
+PATCH_SIZE = 64 # Patch size used for training
 
 [TRAIN.SAMPLES]
-DIR = '${DATA}/interim/samples'
+DIR = '${DATA}/interim/srp/samples'  # I think this is what you want, in srp folder as a subfolder
 FOLDS = 5
 CURRENT_FOLD = 1
 
@@ -75,6 +75,7 @@ BLOCK_SIZE = 4096 # Size of a block to page from huge files; should be as big as
 [TRAIN.AUGMENTATION]
 VARIATIONS = 20
 MAX_OFFSET = 15  # Unused? Units? (better be pixels -- should be meters)
-
+SYNTHETIC_PROBABILITY = 0  # the probability of using synthetic data
+NAME_PATTERN = '{label}/{name}/{name}_var{var_idx:03}.pkl' # var_idx is index of variation (1...VARIATIONS)
 
 

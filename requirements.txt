@@ -17,6 +17,7 @@ scikit-learn
 fiona
 toml
 tqdm
+easydict
 
 # Required for generating documentation
 sphinxcontrib-napoleon

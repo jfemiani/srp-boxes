@@ -30,15 +30,16 @@ clean-volume-data:
 
 
 # Undocumented targets
-
 interim/srp/stack_a4b2.md5:
+	mkdir -p interim/srp
 	wget -O interim/srp/stack_a4b2.md5 $(VISION_FILE_SERVER)srp/stack_a4b2.md5
 
 interim/srp/stack_a4b2.zip: interim/srp/stack_a4b2.md5
-	mkdir -p interim/srp
+	# mkdir -p interim/srp
 	wget -O $@ $(VISION_FILE_SERVER)srp/stack_a4b2.zip
 	wget -O $@.md5 $(VISION_FILE_SERVER)srp/stack_a4b2.zip.md5
 	cd interim/srp && md5sum -c stack_a4b2.zip.md5
+	rm stack_a4b2.zip*
 
 
 interim/srp/stack_a4b2/lidar_volume.vrt: interim/srp/stack_a4b2.zip
@@ -50,13 +51,13 @@ raw/srp/box-annotations.geojson:
 	mkdir -p raw/srp
 	wget -O $@ $(VISION_FILE_SERVER)srp/box-annotations.geojson
 	wget -O $@.md5 $(VISION_FILE_SERVER)srp/box-annotations.geojson.md5
-	cd raw/srp && md5sum -c $@.md5
+	cd raw/srp && md5sum -c box-annotations.geojson.md5
 
 raw/srp/sec11-26949.tif:
 	mkdir -p raw/srp
 	wget -O $@ $(VISION_FILE_SERVER)srp/sec11-26949.tif
 	wget -O $@.md5 $(VISION_FILE_SERVER)srp/sec11-26949.tif.md5
-	cd raw/srp && md5sum -c $@.md5
+	cd raw/srp && md5sum -c sec11-26949.tif.md5
 
 # raw/srp/srp-test-site-1-laz.zip:
 # 	mkdir -p raw/srp

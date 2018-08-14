@@ -180,7 +180,7 @@ class SampleGenerator:
         indices = np.random.choice(len(neg_xy), num_of_negs)
         neg_xy = neg_xy[indices]
 
-        samples = [[self.sample_name_pattern.format(label='neg', index=i), x, y]
+        samples = [[self.sample_name_pattern.format(label='neg', index=i + 1), x, y]
                    for i, (x, y) in enumerate(tqdm(neg_xy))]
 
         colnames = ['name', 'orig-x', 'orig-y']

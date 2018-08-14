@@ -112,7 +112,7 @@ class DataProvider(object):
         :param color_file:
             The color file. (default C.COLOR.FILE)
         :param radius:
-            Half the size of a patch. (default C.TRAIN.PATCH_SIZE / 2)
+            Half the size of a patch. (default C.TRAIN.SAMPLES.GENERATOR.PADDED_PATCH_SIZE / 2)
 
         """
         super().__init__()
