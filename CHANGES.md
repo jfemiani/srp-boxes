@@ -17,7 +17,8 @@
 * [x] Use `python -m srp.data.generate_csv` to generate sample metadata based on the config. 
 * [x] Use `python -m srp.data.generate_patches` to generate positive and negative patches based on the config. 
 * [x] Use `python -m srp.visualize.show_patches` to launch a GUI that shows the extracted patches. 
-* [ ] Use `python -m srp.data.generate_variations` to generate variations on the data.
+* [ ] Use `python -m srp.data.generate_pre_variations` to generate variations for _pretraining_ on the data.
+* [ ] Use `python -m srp.data.generate_variations` to generate variations on the for the final training loop.
 * [ ] Use `python -m srp.model.train` to do training based on the current data and config settings. 
 * [ ] Use `python -m srp.report` to generate reports based on the current model and config settings. 
   * [ ]  Generate a confusion matrix that can be pasted into LaTeX
