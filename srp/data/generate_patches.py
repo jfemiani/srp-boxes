@@ -18,6 +18,8 @@ from srp.config import C
 from srp.data.orientedboundingbox import OrientedBoundingBox
 from srp.util import tqdm
 
+from logging import warn
+
 
 class Patch:
     # pylint:disable=too-few-public-methods,too-many-instance-attributes
@@ -250,6 +252,9 @@ class DataProvider(object):
             name, center_x, center_y, original_angle, length, width = row
 
             path = os.path.join(C.TRAIN.SAMPLES.DIR, name)
+            if os.path.isfile(path):
+                warn("Skipping {}:  file already exists. Remove existing files first to regenerate.")
+                continue
             dirname = os.path.dirname(path)
             os.makedirs(dirname, exist_ok=True)
 
@@ -273,6 +278,9 @@ class DataProvider(object):
         for i, row in enumerate(progress):
             name, center_x, center_y = row
             path = os.path.join(C.TRAIN.SAMPLES.DIR, name)
+            if os.path.isfile(path):
+                warn("Skipping {}:  file already exists. Remove existing files first to regenerate.")
+                continue
             os.makedirs(os.path.dirname(path), exist_ok=True)
             data = self.get_patch_xy(center_x, center_y, radius_in_pixels=self.radius)
             patch = Patch(

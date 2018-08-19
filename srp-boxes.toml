@@ -53,9 +53,22 @@ STEPS = 6
 
 [TRAIN]
 SRAND = 127
-CLASS_BALANCE = [1, 1]
+CLASS_BALANCE = [1.0, 1.0]  #  The desired ration of neg to pos.
 HARD_SAMPLING = false
 PATCH_SIZE = 64 # Patch size used for training
+BATCH_SIZE = 256
+
+NUM_FEATURES = 512 # Number of data fusion features
+
+[EXPERIMENT]
+# A name to use for this experiment
+FUSION = 'early_fusion'
+OBB_PARAMETRIZATION = 'vector_and_width'
+SYNTHETIC = 'no_pretrain'
+CHANNEL_DROPOUT = 'cdrop'
+CLASS_LOSS = 'hinge_loss'
+REGRESSION_LOSS = 'smooth_L1'
+AUG_JITTER = 'no_jitter'
 
 [TRAIN.SAMPLES]
 DIR = '${DATA}/interim/srp/samples'  # I think this is what you want, in srp folder as a subfolder

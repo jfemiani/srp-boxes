@@ -1,3 +1,8 @@
+"""An interactuve GUI to explore the patches we generate.
+
+I use this to confirm that the patches we generate are reasonable
+"""
+
 from pylab import plt
 import os
 import pandas as pd

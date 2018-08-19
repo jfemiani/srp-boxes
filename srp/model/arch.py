@@ -32,10 +32,21 @@ from torchvision.models import vgg
 
 from srp.util import tqdm, trange
 
+import torch.cuda
+
+if torch.cuda.is_available():
+
+    def to_device(x):
+        return x.cuda()
+else:
+
+    def to_device(x):
+        return x
+
 
 class FusionOptions:
     """FusionOptions
-    
+
     Enumeration of options for doing early fusion.
     """
     EARLY = 'early'
@@ -115,17 +126,21 @@ class EarlyFusion(nn.Module):
 
         # Since the lidar data is fundamentally different than RGB, this
         # sets all weights to the mean.
-        _change_num_channels(proto[0], self.rgb_channels + self.lidar_channels)
+        _change_num_channels(self.net[0], self.rgb_channels + self.lidar_channels)
 
         # The first 3 channels are RGB; those weights are okay to use as is
-        proto[0].weight[:self.rgb_channels] = proto[0].weight[:self.rgb_channels]
+        self.net[0].weight.data[:, :self.rgb_channels, ...] = proto[0].weight[:, :self.rgb_channels, ...]
 
     def forward(self, x):  # pylint:disable=arguments-differ
         """forward
 
         :param x:
         """
-        return self.net(x)
+        features = self.net(x)
+
+        pooled_features = F.adaptive_max_pool2d(features, output_size=(1, 1))
+
+        return pooled_features
 
 
 class LateFusion(nn.Module):
@@ -306,7 +321,8 @@ class Architecture(nn.Module):
         self.fusion = kwargs.pop('fusion', FusionOptions.EARLY)
         self.obb_parametrization = kwargs.pop('obb_parametrization', ObbOptions.VECTOR_AND_WIDTH)
         self.channel_dropout = kwargs.pop('channel_dropout', ChannelDropoutOptions.CDROP)
-        self.channel_dropout_ratios = kwargs.pop('channel_dropout_ratios', (1, 1, 5))
+        self.channel_dropout_ratios = np.array(kwargs.pop('channel_dropout_ratios', (1, 1, 5)), dtype=np.float)
+        self.channel_dropout_ratios /= self.channel_dropout_ratios.sum()
 
         self.synthetic = kwargs.pop('synthetic', SyntheticOptions.NO_PRETRAIN)
         self.class_loss_function = kwargs.pop('class_loss', ClassLossOptions.XENT_LOSS)
@@ -386,11 +402,12 @@ class Architecture(nn.Module):
         if self.channel_dropout == ChannelDropoutOptions.CDROP:
             dropout = np.random.choice(['rgb', 'lidar', 'none'], p=self.channel_dropout_ratios)
             if dropout == 'rgb':
-                self.x[:, :self.rgb_channels] = 0
+                x[:, :self.rgb_channels] = 0
             elif dropout == 'lidar':
-                self.x[:, self.rgb_channels:] = 0
+                x[:, self.rgb_channels:] = 0
 
         features = self.features(x)
+        features = features.view(features.size(0), -1)
         logits = self.classifier(features)
         parameters = self.regressor(features)
         return (logits, parameters)
@@ -664,33 +681,34 @@ class Solver(object):
     def obb_to_output(obb, obb_parametrization):
         """
         Generate the expected net outputs for an obb.
-        If obb is None, then the net should predit no bounding box.
+        If obb is None, then the net should predict all zeros.
 
+        This dose _not_ predict anything regarding the label -- only the regressison outputs.
 
         Example:
 
-        Passing `None` results in a negative sample (1 and all 0's)
+        Passing `None` results in a negative sample (all 0's)
 
         >>> print(Solver.obb_to_output(None, ObbOptions.FOUR_POINTS))
-        tensor([ 1., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
+        tensor([ 0., 0., 0., 0., 0., 0., 0., 0.])
 
         >>> print(Solver.obb_to_output(None, ObbOptions.TWO_VECTORS))
-        tensor([ 1., 0., 0., 0., 0., 0., 0., 0.])
+        tensor([ 0., 0., 0., 0., 0., 0.])
 
         >>> print(Solver.obb_to_output(None, ObbOptions.VECTOR_AND_WIDTH))
-        tensor([ 1., 0., 0., 0., 0., 0., 0.])
+        tensor([ 0., 0., 0., 0., 0.])
 
         # Check that it generate a positive example correctly
         >>> box = OrientedBoundingBox.from_rot_length_width((1,2), deg=30.0, length=2.0, width=1.0)
 
         >>> print(Solver.obb_to_output(box, ObbOptions.FOUR_POINTS))
-        tensor([ 0.0..., 1.0..., 1.616..., 2.933..., -0.116..., 1.933..., 0.38..., 1.067..., 2.116..., 2.067...])
+        tensor([ 1.616..., 2.933..., -0.116..., 1.933..., 0.38..., 1.067..., 2.116..., 2.067...])
 
         >>> print(Solver.obb_to_output(box, ObbOptions.TWO_VECTORS))
-        tensor([ 0.0..., 1.0..., 1.0..., 2.0..., 0.866..., 0.50..., -0.25..., 0.433...])
+        tensor([ 1.0..., 2.0..., 0.866..., 0.50..., -0.25..., 0.433...])
 
         >>> print(Solver.obb_to_output(box, ObbOptions.VECTOR_AND_WIDTH))
-        tensor([ 0.0..., 1.0..., 1.0..., 2.0..., 0.866..., 0.50..., 1.0...])
+        tensor([ 1.0..., 2.0..., 0.866..., 0.50..., 1.0...])
 
         """
 
@@ -702,13 +720,13 @@ class Solver(object):
             num_obb_params = 5
 
         if obb is None:
-            return torch.Tensor([1, 0] + [0] * num_obb_params)
+            return torch.Tensor([0] * num_obb_params)
         elif obb_parametrization == ObbOptions.FOUR_POINTS:
-            return torch.Tensor([0, 1] + list(obb.points().flat))
+            return torch.Tensor(list(obb.points().flat))
         elif obb_parametrization == ObbOptions.TWO_VECTORS:
-            return torch.Tensor([0, 1] + list(obb.origin) + list(obb.u_vector) + list(obb.v_vector))
+            return torch.Tensor(list(obb.origin) + list(obb.u_vector) + list(obb.v_vector))
         # obb_parametrization == ObbOptions.VECTOR_AND_WIDTH:
-        return torch.Tensor([0, 1] + list(obb.origin) + list(obb.u_vector) + [2 * obb.v_length])
+        return torch.Tensor(list(obb.origin) + list(obb.u_vector) + [2 * obb.v_length])
 
     def iterate(self, mode='eval'):
         """Do a forward pass on the net and compute the loss and other stats; possibly updating weights.
@@ -736,36 +754,41 @@ class Solver(object):
         progressbar = tqdm(self.val_loader, "computing validation", leave=False)
 
         confusion_matrix = np.zeros((2, 2))
-        for x, y in progressbar:
-
+        for batch in progressbar:
+            x, y = batch
             expected_is_box = y[0]
-            expected_obb_parameters = y[1:]
+            expected_obb_points = y[1]
 
-            x = x.cuda()
-            expected_is_box = expected_is_box.cuda()
-            expected_obb_parameters = expected_obb_parameters.cuda()
+            # We need to convert the expected parameters to match our predictions
+            expected_obbs = [OrientedBoundingBox.from_points(params) for params in expected_obb_points]
+            expected_obb_parameters = [self.obb_to_output(obb, self.net.obb_parametrization) for obb in expected_obbs]
+            expected_obb_parameters = torch.stack(expected_obb_parameters)
 
-            logits, obb_parameters = self.net.forward(x).squeeze()
+            x = to_device(x)
+            expected_is_box = to_device(expected_is_box)
+            expected_obb_parameters = to_device(expected_obb_parameters)
+
+            logits, obb_parameters = self.net.forward(x)
             predicted_is_box = torch.argmax(logits, dim=1).squeeze()
 
             # Compute the loss
             class_loss = self.class_loss_function(logits, expected_is_box)
 
             # Only measure regression loss of there is a box
-            if predicted_is_box:
-                regression_loss = self.regression_loss_function(obb_parameters, expected_obb_parameters)
-            else:
-                regression_loss = 0
+            regression_loss = self.regression_loss_function(obb_parameters[expected_is_box == 1],
+                                                            expected_obb_parameters[expected_is_box == 1])
 
-            total_loss = (self.classification_weight * class_loss + self.classification_weight * regression_loss)
+            total_loss = self.classification_weight * class_loss
+            if sum(expected_is_box) > 0:
+                total_loss += self.classification_weight * regression_loss
 
+            loss += total_loss.item()
             if mode == Solver.EVAL:
-                confusion_matrix += np.bincount(2 * y + predicted_is_box, minlength=4).reshape(2, 2)
+                confusion_matrix += np.bincount(2 * expected_is_box + predicted_is_box, minlength=4).reshape(2, 2)
             else:  # mode == Solver.TRAIN
                 total_loss.backward()
                 self.optimizer.step()
 
-            loss += total_loss.item()
             loss_count += 1
             progressbar.set_description("{mode} loss={loss:5.2}".format(mode=mode, loss=loss / loss_count))
         progressbar.close()
@@ -819,9 +842,11 @@ class Solver(object):
         # loop over the dataset multiple times
         # NOTE: This does _up to_ max_epochs _additional_ epochs.
         for dummy in trange(self.max_epochs):
-            if self.epoch % self.reaug_interval == 0:
-                self.trn_loader.dataset.pre_augment()
-                self.val_loader.dataset.pre_augment()
+
+            # TODO: Periodically recalculate the variations
+            # if self.epoch % self.reaug_interval == 0:
+            #     self.trn_loader.dataset.pre_augment()
+            #     self.val_loader.dataset.pre_augment()
 
             self.iterate(Solver.TRAIN)
             self.iterate(Solver.EVAL)

@@ -19,7 +19,7 @@ import shapely.geometry
 from srp.config import C
 from srp.data.orientedboundingbox import OrientedBoundingBox
 from srp.util import tqdm
-from logging import info
+from logging import info, warning
 
 
 class SampleGenerator:
@@ -192,8 +192,16 @@ class SampleGenerator:
 
 def generate_samples():
     generator = SampleGenerator()
-    generator.make_pos_csv()
-    generator.make_neg_csv()
+    if os.path.isfile(generator.positive_csv_file):
+        warning("Skipping positive CSV generation:"
+                " output file {} already exists.".format(generator.positive_csv_file))
+    else:
+        generator.make_pos_csv()
+    if os.path.isfile(generator.negative_csv_file):
+        warning("Skipping negative CSV generation:"
+                " output file {} already exists".format(generator.negative_csv_file))
+    else:
+        generator.make_neg_csv()
 
 
 if __name__ == '__main__':
