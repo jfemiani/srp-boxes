@@ -41,7 +41,7 @@ def plot_lidar(x, ax=None, channels=(2, 3, 4), alpha=0.5):
     alpha: Opacity for the plot; useful when you plot lidar on top of color imagery
     """
     ax = ax or plt.gca()
-    vol = x[np.array(channels), :, :].transpose(1, 2, 0)
+    vol = x[3:][np.array(channels), :, :].transpose(1, 2, 0)
     display_vol = 2 * np.arctan(vol) / np.pi
     cx, cy = np.array(vol.shape[:2]) / 2
     extent = [-cx, cx, -cy, cy]
@@ -69,7 +69,7 @@ def plot_inputs(x, ax=None, channels=(3, 4, 5), alpha=0.5):
     plot_lidar(x, ax, channels, alpha)
 
 
-def plot_batch(batch, num_samples=None, alpha=0.5):
+def plot_batch(batch, num_samples=None, channels=(2,3,4), alpha=0.5):
     """Plot a batch of images.
 
 
@@ -96,7 +96,7 @@ def plot_batch(batch, num_samples=None, alpha=0.5):
 
     for i, ax in enumerate(axes):
         plt.sca(ax)
-        plot_inputs(x[i], ax, alpha=alpha)
+        plot_inputs(x[i], ax, channels=channels, alpha=alpha)
         if y[i] == 1:
             plot_box(params[i], ax)
         ax.set_xticks([])

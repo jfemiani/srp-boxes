@@ -39,7 +39,7 @@ interim/srp/stack_a4b2.zip: interim/srp/stack_a4b2.md5
 	wget -O $@ $(VISION_FILE_SERVER)srp/stack_a4b2.zip
 	wget -O $@.md5 $(VISION_FILE_SERVER)srp/stack_a4b2.zip.md5
 	cd interim/srp && md5sum -c stack_a4b2.zip.md5
-	rm stack_a4b2.zip*
+	# rm stack_a4b2.zip*
 
 
 interim/srp/stack_a4b2/lidar_volume.vrt: interim/srp/stack_a4b2.zip

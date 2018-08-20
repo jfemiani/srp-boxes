@@ -32,6 +32,8 @@ from torchvision.models import vgg
 
 from srp.util import tqdm, trange
 
+from srp.config import C
+
 import torch.cuda
 
 if torch.cuda.is_available():
@@ -318,7 +320,7 @@ class Architecture(nn.Module):
         self.rgb_channels = rgb_channels
         self.num_features = num_features
 
-        self.fusion = kwargs.pop('fusion', FusionOptions.EARLY)
+        self.fusion = kwargs.pop('fusion', C.EXPERIMENT.FUSION)
         self.obb_parametrization = kwargs.pop('obb_parametrization', ObbOptions.VECTOR_AND_WIDTH)
         self.channel_dropout = kwargs.pop('channel_dropout', ChannelDropoutOptions.CDROP)
         self.channel_dropout_ratios = np.array(kwargs.pop('channel_dropout_ratios', (1, 1, 5)), dtype=np.float)
@@ -405,7 +407,8 @@ class Architecture(nn.Module):
                 x[:, :self.rgb_channels] = 0
             elif dropout == 'lidar':
                 x[:, self.rgb_channels:] = 0
-
+        
+        # import pdb; pdb.set_trace()
         features = self.features(x)
         features = features.view(features.size(0), -1)
         logits = self.classifier(features)
@@ -510,18 +513,18 @@ class Solver(object):
         self.best_val_loss = float('inf')
         self.epoch = 0
 
-        self.optimizer = kwargs.pop('optimizer', 'adam')
+        self.optimizer = kwargs.pop('optimizer',  C.TRAIN.OPTIMIZER)
         self.class_loss_function = kwargs.pop('class_loss', ClassLossOptions.XENT_LOSS)
         self.regression_loss_function = kwargs.pop('regression_loss', RegressionLossOptions.SMOOTH_L1)
 
-        self.classification_weight = kwargs.pop('classification_weight', 1)
-        self.regression_weight = kwargs.pop('regression_weight', 1)
+        self.classification_weight = kwargs.pop('classification_weight', C.TRAIN.CLASSIFICATION_WEIGHT)
+        self.regression_weight = kwargs.pop('regression_weight', C.TRAIN.REGRESSION_WEIGHT)
 
         self.max_epochs = kwargs.pop('max_epochs', 100)
         self.max_overfit = kwargs.pop('max_overfit', 5)
 
-        self.learning_rate = kwargs.pop('learning_rate', 1e-3)
-        self.weight_decay = kwargs.pop('weight_decay', 1e-3)
+        self.learning_rate = kwargs.pop('learning_rate', C.TRAIN.LEARNING_RATE)
+        self.weight_decay = kwargs.pop('weight_decay', C.TRAIN.WEIGHT_DECAY)
 
         self.reaug_interval = kwargs.pop('reaug_interval', 20)
 
@@ -533,7 +536,7 @@ class Solver(object):
         # Load the optimizer based on the option
         if self.optimizer == 'adam':
             learnable_parameters = [p for p in self.net.parameters() if p.requires_grad]
-            self.optimizer = optim.Adam(learnable_parameters, lr=0.001, weight_decay=0.001)
+            self.optimizer = optim.Adam(learnable_parameters, lr=self.learning_rate, weight_decay=self.weight_decay)
 
         # If a string was passed for class_loss, load the corresponding loss function.
         if self.class_loss_function == ClassLossOptions.XENT_LOSS:
@@ -547,7 +550,7 @@ class Solver(object):
         elif self.regression_loss_function == RegressionLossOptions.SMOOTH_L1:
             self.regression_loss_function = nn.SmoothL1Loss()
 
-    def save_checkpoint(self, filename='checkpoint.pth.tar', best_filename='model_best.pth.tar'):
+    def save_checkpoint(self, filename=None, best_filename=None):
         """Save the model, possibly updating the best model.
 
         This saves the current model using the filename provided, and
@@ -566,6 +569,9 @@ class Solver(object):
         :param best_filename: The filename of the best checkpoint.
 
         """
+
+        if filename is None: filename = C.TRAIN.CHECKPOINT_PATTERN
+        if best_filename is None: best_filename = C.TRAIN.BEST_PATTERN
 
         filename = filename.format(epoch=self.epoch)
         best_filename = best_filename.format(epoch=self.epoch)
@@ -746,12 +752,13 @@ class Solver(object):
         """
         if mode == Solver.EVAL:
             self.net.eval()
+            progressbar = tqdm(self.val_loader, "computing validation", leave=False)
         else:
             self.net.train()
-
+            progressbar = tqdm(self.trn_loader, "computing validation", leave=False)
         loss = 0.0
         loss_count = 0
-        progressbar = tqdm(self.val_loader, "computing validation", leave=False)
+        #progressbar = tqdm(self.val_loader, "computing validation", leave=False)
 
         confusion_matrix = np.zeros((2, 2))
         for batch in progressbar:
@@ -780,7 +787,7 @@ class Solver(object):
 
             total_loss = self.classification_weight * class_loss
             if sum(expected_is_box) > 0:
-                total_loss += self.classification_weight * regression_loss
+                total_loss += self.regression_weight * regression_loss
 
             loss += total_loss.item()
             if mode == Solver.EVAL:

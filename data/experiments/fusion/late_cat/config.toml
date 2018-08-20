@@ -1,0 +1,15 @@
+
+[TORCH]
+DEVICE=3
+
+
+[LOGGING.handlers.file]
+filename='./boxes.log'
+
+[TRAIN]
+CHECKPOINT_PATTERN = './checkpoint.pth.tar'
+BEST_PATTERN = './best.pth.tar'
+
+[EXPERIMENT]
+FUSION = 'late_cat'
+

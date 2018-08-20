@@ -8,6 +8,9 @@
 # $ROOT -- Environment variable set to project root
 # $DATA -- Environment variable set to the data folder
 
+[TORCH]
+DEVICE=0
+
 [DISPLAY.PROGRESS]
 DISABLE=false # Show progress bars for potentially slow operations.
 
@@ -51,6 +54,17 @@ MIN = -0.3048
 MAX = 1.524
 STEPS = 6
 
+[EXPERIMENT]
+# A name to use for this experiment
+FUSION = 'early'
+OBB_PARAMETRIZATION = 'vector_and_width'
+SYNTHETIC = 'no_pretrain'
+CHANNEL_DROPOUT = 'cdrop'
+CLASS_LOSS = 'hinge_loss'
+REGRESSION_LOSS = 'smooth_L1'
+AUG_JITTER = 'no_jitter'
+
+
 [TRAIN]
 SRAND = 127
 CLASS_BALANCE = [1.0, 1.0]  #  The desired ration of neg to pos.
@@ -60,15 +74,17 @@ BATCH_SIZE = 256
 
 NUM_FEATURES = 512 # Number of data fusion features
 
-[EXPERIMENT]
-# A name to use for this experiment
-FUSION = 'early_fusion'
-OBB_PARAMETRIZATION = 'vector_and_width'
-SYNTHETIC = 'no_pretrain'
-CHANNEL_DROPOUT = 'cdrop'
-CLASS_LOSS = 'hinge_loss'
-REGRESSION_LOSS = 'smooth_L1'
-AUG_JITTER = 'no_jitter'
+OPTIMIZER='adam'
+
+LEARNING_RATE = 0.00001
+WEIGHT_DECAY = 0.0001
+
+CLASSIFICATION_WEIGHT = 1
+REGRESSION_WEIGHT  = 0
+
+CHECKPOINT_PATTERN = 'data/interim/checkpoint.pth.tar'
+BEST_PATTERN = 'data/interim/best.pth.tar'
+
 
 [TRAIN.SAMPLES]
 DIR = '${DATA}/interim/srp/samples'  # I think this is what you want, in srp folder as a subfolder
