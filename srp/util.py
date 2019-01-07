@@ -51,3 +51,9 @@ def trange(*args, **kwargs):
     kwargs_.update(kwargs)
     clear_tqdm()
     return tq.trange(*args, **kwargs_)
+
+try: 
+    from IPython.core.debugger import set_trace as breakpoint
+except:
+    from pdb import set_trace as breakpoint
+    

@@ -56,13 +56,17 @@ STEPS = 6
 
 [EXPERIMENT]
 # A name to use for this experiment
-FUSION = 'early'
-OBB_PARAMETRIZATION = 'vector_and_width'
-SYNTHETIC = 'no_pretrain'
-CHANNEL_DROPOUT = 'cdrop'
-CLASS_LOSS = 'hinge_loss'
-REGRESSION_LOSS = 'smooth_L1'
-AUG_JITTER = 'no_jitter'
+FUSION = 'early'    # done
+OBB_PARAMETRIZATION = 'vector_and_width'   #done
+SYNTHETIC = 'no_pretrain'    # 5 epochs of synthetic 100% only on training samples?
+CHANNEL_DROPOUT = 'cdrop'   # done
+CLASS_LOSS = 'xent_loss'        # 
+REGRESSION_LOSS = 'smooth_L1'        #
+AUG_JITTER = 'no_jitter'     # not doing it now
+
+[PRETRAIN]
+SYNTHETIC_PROBABILITY = 1
+PRETRAIN_EPOCH = 10
 
 
 [TRAIN]
@@ -70,7 +74,7 @@ SRAND = 127
 CLASS_BALANCE = [1.0, 1.0]  #  The desired ration of neg to pos.
 HARD_SAMPLING = false
 PATCH_SIZE = 64 # Patch size used for training
-BATCH_SIZE = 256
+BATCH_SIZE = 128
 
 NUM_FEATURES = 512 # Number of data fusion features
 
@@ -80,14 +84,14 @@ LEARNING_RATE = 0.00001
 WEIGHT_DECAY = 0.0001
 
 CLASSIFICATION_WEIGHT = 1
-REGRESSION_WEIGHT  = 0
+REGRESSION_WEIGHT  = 1.5
 
 CHECKPOINT_PATTERN = 'data/interim/checkpoint.pth.tar'
 BEST_PATTERN = 'data/interim/best.pth.tar'
 
 
 [TRAIN.SAMPLES]
-DIR = '${DATA}/interim/srp/samples'  # I think this is what you want, in srp folder as a subfolder
+DIR = '${DATA}/interim/srp/samples'  
 FOLDS = 5
 CURRENT_FOLD = 1
 

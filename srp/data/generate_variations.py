@@ -173,7 +173,7 @@ def generate_variations(names=None, synthetic_prop=C.TRAIN.AUGMENTATION.SYNTHETI
         samples = glob.glob(os.path.join(C.TRAIN.SAMPLES.DIR, '*/*.pkl'))
 
     maker = VariationMaker(synthetic_prop=synthetic_prop, cache_root=cache_root)
-    progress = tqdm(samples, desc='Generating variation patches')
+    progress = tqdm(samples, desc='Generating variation patches, syn_prop={}'.format(synthetic_prop))
 
     for i, name_dir in enumerate(progress):
         with open(os.path.join(C.TRAIN.SAMPLES.DIR, name_dir), 'rb') as handle:

@@ -4,6 +4,7 @@ import numpy as np
 from srp.config import C
 from glob import glob
 from srp.data.orientedboundingbox import OrientedBoundingBox
+from srp.data.generate_variations import VariationMaker, generate_variations
 from torch.utils.data import Dataset
 from srp.data.generate_patches import Patch
 
@@ -15,7 +16,7 @@ class RgbLidarDataset(Dataset):
 
     """
 
-    def __init__(self, train_or_test, cache_dir=None):
+    def __init__(self, train_or_test, cache_dir=None, fold=C.TRAIN.SAMPLES.CURRENT_FOLD):
         """
         This class is design to use in conjunction with the pytorch dataloader class
 
@@ -46,14 +47,29 @@ class RgbLidarDataset(Dataset):
         Please specify epoch length accordingly.
         """
         super().__init__()
-        assert isinstance('train', str)
+        assert isinstance(train_or_test, str)
 
         self.cache_dir = cache_dir or C.TRAIN.SAMPLES.DIR
-        self.txt_dir = os.path.join(C.TRAIN.SAMPLES.DIR, 'fold{}'.format(C.TRAIN.SAMPLES.CURRENT_FOLD),
+        self.fold = fold
+        
+        self.txt_dir = os.path.join(C.TRAIN.SAMPLES.DIR, 'fold{}'.format(self.fold),
                                     '{}.txt'.format(train_or_test))
 
         with open(self.txt_dir, 'r') as f:
             self.dataset = f.read().splitlines()
+    
+    def pre_augment(self, is_pretrain=False):
+        '''
+        :param is_pretrain: boolean value indicating if pretrain should be applied on dataset. Default is False
+        '''
+        # only use synthetic during pretrain phase and dataset is training set
+        if is_pretrain:
+            synthetic_prop = C.PRETRAIN.SYNTHETIC_PROBABILITY
+        else:
+            synthetic_prop = C.TRAIN.AUGMENTATION.SYNTHETIC_PROBABILITY
+        generate_variations(self.dataset, synthetic_prop=synthetic_prop)
+            
+    
 
     def _load_random_pickle(self, dirname):
         patches = glob(os.path.join(dirname, '*.pkl'))

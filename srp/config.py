@@ -67,6 +67,13 @@ _CONFIG_PATHS = [
 
 PATH_KEYS = {'FILE', 'FILENAME', 'DIR', 'PATH', 'FOLDER', 'ROOT', 'DATA', 'INT_DIR', 'RAW_DIR'}
 
+def merge_settings(a, b):
+    for k in b:
+        if k in a and isinstance(a[k], dict):
+            merge_settings(a[k], b[k])
+        else:
+            a[k] = b[k]
+
 
 def load_settings():
     """Load settings from config files.
@@ -80,10 +87,11 @@ def load_settings():
     # pylint:disable=global-statement
     global C
     configs = _CONFIG_PATHS
-    settings = toml.load(list([c for c in configs if os.path.isfile(c)]), EasyDict)
-    for s in settings:
-        C[s] = settings[s]
-
+    for c in configs:
+        if os.path.isfile(c):
+            settings = toml.load(c, EasyDict)
+            merge_settings(C, settings)
+    
     def expandvars(settings):
         """Recursively replace environment variables for fields that are paths"""
         for key in settings:
